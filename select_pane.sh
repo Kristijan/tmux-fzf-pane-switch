@@ -42,10 +42,18 @@ function select_pane() {
         preview+="' --preview-window=${3}"
     fi
 
+    # fzf runs the preview command through $SHELL, and the preview uses POSIX
+    # syntax that shells like fish can't parse, so point it at a POSIX shell.
+    local fzf_shell
+    fzf_shell="$(command -v bash || command -v sh)"
+
     # Launch switcher
-    pane=$(tmux list-panes -aF "${4}" | 
-        eval fzf --exit-0 --print-query --reverse --tmux "${2}" --with-nth=2.. "${border_styling}" "${preview}" | 
-        tail -1)
+    pane=$(
+        export SHELL="${fzf_shell}"
+        tmux list-panes -aF "${4}" |
+            eval fzf --exit-0 --print-query --reverse --tmux "${2}" --with-nth=2.. "${border_styling}" "${preview}" |
+            tail -1
+    )
 
     # Set pane_id to first part of fzf output
     pane_id=$(echo "${pane}" | awk '{print $1}')
