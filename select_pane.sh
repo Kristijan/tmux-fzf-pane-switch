@@ -5,11 +5,8 @@
 # If you press ENTER on an empty line, it creates a new window in the current session.
 function select_pane() {
     local fzf_version fzf_version_comparison
-    local current_pane pane pane_id preview_command
+    local pane pane_id preview_command
     local -a border_styling=() fzf_args preview_args=()
-
-    # Save the currently active pane ID
-    current_pane=$(tmux display-message -p '#{pane_id}')
 
     # Setup border styling
     # Specific fzf releases have added additional styling options.
@@ -67,7 +64,7 @@ function select_pane() {
 
     # If pane_id is empty, exit without changing pane
     if [[ -z "${pane_id}" ]]; then
-        tmux switch-client -t "${current_pane}"
+        return
     # Check if pane exists
     elif tmux has-session -t "${pane_id}" >/dev/null 2>&1; then
         # Found it! Let's switch.
