@@ -48,7 +48,6 @@ function select_pane() {
     fzf_shell="$(command -v bash || command -v sh)"
 
     fzf_args=(
-        --exit-0
         --reverse
         --tmux "${2}"
         --with-nth=2..

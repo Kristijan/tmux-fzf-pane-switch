@@ -10,8 +10,8 @@ Search and filter on any pane details, such as (but not limited to) the `#{windo
 
 ## Requirements
 
-* [fzf](https://github.com/junegunn/fzf) >= 0.53.0 (requires the `--tmux` option). I tested with 0.55.0.
-* [tmux](https://github.com/tmux/tmux) >= 3.3. I tested with 3.3a.
+* [fzf](https://github.com/junegunn/fzf) >= 0.53.0 (requires the `--tmux` option). I tested with 0.74.0.
+* [tmux](https://github.com/tmux/tmux) >= 3.3. I tested with 3.7b.
 
 > [!NOTE]
 > To get the border styling as shown in the image above, you need fzf version >= 0.58.0.
