@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+printf '%s\n' "$*" >> "${TMUX_STUB_LOG}"
+
+case "${1:-}" in
+    show-option)
+        option="${*: -1}"
+        case "${option}" in
+            @fzf_pane_switch_layout) printf '%s\n' "${TMUX_STUB_LAYOUT:-}" ;;
+            @fzf_pane_switch_two-row-style) printf '%s\n' "${TMUX_STUB_STYLE:-}" ;;
+            @fzf_pane_switch_row-1-format) printf '%s\n' "${TMUX_STUB_ROW_1:-}" ;;
+            @fzf_pane_switch_row-2-format) printf '%s\n' "${TMUX_STUB_ROW_2:-}" ;;
+            @fzf_pane_switch_separator) printf '%s\n' "${TMUX_STUB_SEPARATOR:-}" ;;
+            @fzf_pane_switch_row-1-colours) printf '%s\n' "${TMUX_STUB_ROW_1_COLOURS:-}" ;;
+            @fzf_pane_switch_row-2-colours) printf '%s\n' "${TMUX_STUB_ROW_2_COLOURS:-}" ;;
+            @fzf_pane_switch_list-panes-colours) printf '%s\n' "${TMUX_STUB_LIST_COLOURS:-}" ;;
+            @fzf_pane_switch_colour-separator) printf '%s\n' "${TMUX_STUB_SEPARATOR_COLOUR:-}" ;;
+        esac
+        ;;
+    show-options)
+        [[ -n "${TMUX_STUB_LAYOUT+x}" ]] && printf '@fzf_pane_switch_layout %s\n' "${TMUX_STUB_LAYOUT}"
+        [[ -n "${TMUX_STUB_STYLE+x}" ]] && printf '@fzf_pane_switch_two-row-style %s\n' "${TMUX_STUB_STYLE}"
+        [[ -n "${TMUX_STUB_ROW_1+x}" ]] && printf '@fzf_pane_switch_row-1-format %s\n' "${TMUX_STUB_ROW_1}"
+        [[ -n "${TMUX_STUB_ROW_2+x}" ]] && printf '@fzf_pane_switch_row-2-format %s\n' "${TMUX_STUB_ROW_2}"
+        [[ -n "${TMUX_STUB_SEPARATOR+x}" ]] && printf '@fzf_pane_switch_separator %s\n' "${TMUX_STUB_SEPARATOR}"
+        [[ -n "${TMUX_STUB_ROW_1_COLOURS+x}" ]] && printf '@fzf_pane_switch_row-1-colours %s\n' "${TMUX_STUB_ROW_1_COLOURS}"
+        [[ -n "${TMUX_STUB_ROW_2_COLOURS+x}" ]] && printf '@fzf_pane_switch_row-2-colours %s\n' "${TMUX_STUB_ROW_2_COLOURS}"
+        [[ -n "${TMUX_STUB_LIST_COLOURS+x}" ]] && printf '@fzf_pane_switch_list-panes-colours %s\n' "${TMUX_STUB_LIST_COLOURS}"
+        ;;
+    list-panes)
+        if [[ "${TMUX_STUB_EXPAND_FORMAT:-false}" == 'true' ]]; then
+            pane_format="${*: -1}"
+            pane_format="${pane_format//'#{pane_id}'/'%1'}"
+            pane_format="${pane_format//'#{pane_title}'/'Title'}"
+            pane_format="${pane_format//'#{pane_current_command}'/'nvim'}"
+            pane_format="${pane_format//'#{session_name}'/'work'}"
+            pane_format="${pane_format//'#{window_name}'/'editor'}"
+            pane_format="${pane_format//'#{s|/Users/[^/]*|~|:pane_current_path}'/'~/projects/fzf-pane-switch.tmux'}"
+            printf '%s\n' "${pane_format}"
+        elif [[ -n "${TMUX_STUB_LIST_OUTPUT:-}" ]]; then
+            printf '%s' "${TMUX_STUB_LIST_OUTPUT}"
+        else
+            printf '%%1 work editor Title nvim\n'
+        fi
+        ;;
+    has-session)
+        [[ "${*: -1}" == '%1' ]]
+        ;;
+esac
