@@ -353,6 +353,12 @@ test_tmux_entrypoint_passes_structured_configuration() {
         TMUX_STUB_JUMP_LABELS='true' \
         TMUX_STUB_REFRESH='true' \
         TMUX_STUB_PREVIEW_PANE_START='hidden' \
+        TMUX_STUB_TREE_SESSION='session_name session_windows' \
+        TMUX_STUB_TREE_WINDOW='window_index window_name' \
+        TMUX_STUB_TREE_PANE='pane_index pane_title' \
+        TMUX_STUB_TREE_SESSION_COLOURS='blue none' \
+        TMUX_STUB_TREE_WINDOW_COLOURS='yellow none' \
+        TMUX_STUB_TREE_PANE_COLOURS='none magenta' \
         bash "${repo_dir}/select_pane.tmux"
 
     if ! command grep -q "two-row.*connected.*pane_title pane_current_command.*session_name window_name.*·" "${case_dir}/tmux-log"; then
@@ -361,8 +367,10 @@ test_tmux_entrypoint_passes_structured_configuration() {
         fail "${name}: positional colour arguments are missing from binding"
     elif ! command grep -q 'bright-black' "${case_dir}/tmux-log"; then
         fail "${name}: separator colour is missing from binding"
-    elif ! command grep -q "'true' 'true' 'true' 'hidden'$" "${case_dir}/tmux-log"; then
+    elif ! command grep -q "'true' 'true' 'true' 'hidden'" "${case_dir}/tmux-log"; then
         fail "${name}: action or preview-start setting is missing from binding"
+    elif ! command grep -q "session_name session_windows.*pane_index pane_title.*blue none.*none magenta" "${case_dir}/tmux-log"; then
+        fail "${name}: tree configuration is missing from binding"
     else
         pass "${name}"
     fi
@@ -723,6 +731,158 @@ test_separates_only_two_row_entries_with_a_horizontal_rule() {
     fi
 }
 
+# Literal tmux IDs intentionally use '$' and expected records are appended incrementally.
+# shellcheck disable=SC2016,SC2129
+test_renders_and_switches_tree_nodes() {
+    local name='renders searchable tree nodes and switches each target scope'
+    local field_separator=$'\037' reset=$'\033[0m' dim=$'\033[2m'
+    local case_dir="${test_tmp}/tree" expected
+    mkdir -p "${case_dir}"
+
+    printf 'session%s$1%sWork%sWork\nsession%s$2%sPersonal%sPersonal\n' \
+        "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" > "${case_dir}/sessions"
+    printf 'window%s$1%s@1%sProduction%s0 │ Production\nwindow%s$1%s@2%sNonProduction%s1 │ NonProduction\nwindow%s$2%s@3%sNotes%s0 │ Notes\n' \
+        "${field_separator}" "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" "${field_separator}" > "${case_dir}/windows"
+    printf 'pane%s@1%s%%1%s0 │ puppetserver │ bash\npane%s@2%s%%2%s0 │ puppetserver │ bash\npane%s@3%s%%3%s0 │ nvim │ nvim\n' \
+        "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" > "${case_dir}/panes"
+
+    expected="${case_dir}/expected-input"
+    printf '$1%ssession%sWork\0' "${field_separator}" "${field_separator}" > "${expected}"
+    printf '@1%swindow%s  ├─ 0 │ Production  %sWork%s\0' "${field_separator}" "${field_separator}" "${dim}" "${reset}" >> "${expected}"
+    printf '%%1%spane%s  │  └─ 0 │ puppetserver │ bash  %sWork › Production%s\0' "${field_separator}" "${field_separator}" "${dim}" "${reset}" >> "${expected}"
+    printf '@2%swindow%s  └─ 1 │ NonProduction  %sWork%s\0' "${field_separator}" "${field_separator}" "${dim}" "${reset}" >> "${expected}"
+    printf '%%2%spane%s     └─ 0 │ puppetserver │ bash  %sWork › NonProduction%s\0' "${field_separator}" "${field_separator}" "${dim}" "${reset}" >> "${expected}"
+    printf '$2%ssession%sPersonal\0' "${field_separator}" "${field_separator}" >> "${expected}"
+    printf '@3%swindow%s  └─ 0 │ Notes  %sPersonal%s\0' "${field_separator}" "${field_separator}" "${dim}" "${reset}" >> "${expected}"
+    printf '%%3%spane%s     └─ 0 │ nvim │ nvim  %sPersonal › Notes%s\0' "${field_separator}" "${field_separator}" "${dim}" "${reset}" >> "${expected}"
+
+    PATH="${fixture_bin}:${PATH}" \
+        FZF_STUB_VERSION='0.71.0' \
+        FZF_STUB_ARGS="${case_dir}/fzf-args" \
+        FZF_STUB_INPUT="${case_dir}/fzf-input" \
+        FZF_STUB_OUTPUT="\$1${field_separator}session" \
+        TMUX_STUB_LOG="${case_dir}/tmux-log" \
+        TMUX_STUB_SESSIONS_OUTPUT="$(command cat "${case_dir}/sessions")"$'\n' \
+        TMUX_STUB_WINDOWS_OUTPUT="$(command cat "${case_dir}/windows")"$'\n' \
+        TMUX_STUB_LIST_OUTPUT="$(command cat "${case_dir}/panes")"$'\n' \
+        bash "${repo_dir}/select_pane.sh" \
+            true 'center,70%,80%' 'right,,,nowrap' \
+            'pane_id session_name window_name pane_title pane_current_command' \
+            tree plain 'pane_title pane_current_command' \
+            'session_name window_name' '│' '' '' '' '' \
+            false false true visible \
+            session_name 'window_index window_name' 'pane_index pane_title pane_current_command' \
+            '' '' '' >"${case_dir}/stdout" 2>"${case_dir}/stderr"
+
+    if ! command cmp -s "${expected}" "${case_dir}/fzf-input"; then
+        fail "${name}: rendered records differ"
+    elif ! command grep -Fxq -- '--with-nth=3..' "${case_dir}/fzf-args"; then
+        fail "${name}: hidden target metadata was displayed"
+    elif ! command grep -q 'capture-pane .* -t {1}' "${case_dir}/fzf-args"; then
+        fail "${name}: scope-aware preview target was not supplied"
+    elif ! command grep -q '^--bind=ctrl-r:track-current+reload-sync' "${case_dir}/fzf-args" || \
+        ! command grep -Fxq -- '--id-nth=1' "${case_dir}/fzf-args"; then
+        fail "${name}: full-tree refresh was not configured"
+    elif ! command grep -q 'switch-client -t \$1' "${case_dir}/tmux-log"; then
+        fail "${name}: selected session was not switched"
+    else
+        pass "${name}"
+    fi
+}
+
+# Literal tmux IDs intentionally use '$'.
+# shellcheck disable=SC2016
+test_joins_tree_records_by_stable_parent_ids() {
+    local name='joins shuffled tree snapshots by stable parent IDs and skips orphans'
+    local field_separator=$'\037' case_dir="${test_tmp}/tree-shuffled"
+    mkdir -p "${case_dir}"
+
+    printf 'session%s$1%sWork%sWork\nsession%s$2%sPersonal%sPersonal\n' \
+        "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" > "${case_dir}/sessions"
+    printf 'window%s$2%s@3%sNotes%s0 │ Notes\nwindow%s$1%s@1%sProduction%s0 │ Production\nwindow%s$9%s@9%sOrphan%s9 │ Orphan\nwindow%s$1%s@2%sNonProduction%s1 │ NonProduction\n' \
+        "${field_separator}" "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" "${field_separator}" > "${case_dir}/windows"
+    printf 'pane%s@2%s%%2%s0 │ puppetserver │ bash\npane%s@3%s%%3%s0 │ nvim │ nvim\npane%s@99%s%%9%s9 │ orphan │ sh\npane%s@1%s%%1%s0 │ puppetserver │ bash\n' \
+        "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" \
+        "${field_separator}" "${field_separator}" "${field_separator}" > "${case_dir}/panes"
+
+    PATH="${fixture_bin}:${PATH}" \
+        FZF_STUB_VERSION='0.71.0' \
+        FZF_STUB_ARGS="${case_dir}/fzf-args" \
+        FZF_STUB_INPUT="${case_dir}/fzf-input" \
+        FZF_STUB_OUTPUT="\$1${field_separator}session" \
+        TMUX_STUB_LOG="${case_dir}/tmux-log" \
+        TMUX_STUB_SESSIONS_OUTPUT="$(command cat "${case_dir}/sessions")"$'\n' \
+        TMUX_STUB_WINDOWS_OUTPUT="$(command cat "${case_dir}/windows")"$'\n' \
+        TMUX_STUB_LIST_OUTPUT="$(command cat "${case_dir}/panes")"$'\n' \
+        bash "${repo_dir}/select_pane.sh" \
+            false 'center,70%,80%' 'right,,,nowrap' \
+            'pane_id session_name window_name pane_title pane_current_command' \
+            tree plain 'pane_title pane_current_command' \
+            'session_name window_name' '│' '' '' '' '' \
+            false false false visible \
+            session_name 'window_index window_name' 'pane_index pane_title pane_current_command' \
+            '' '' '' >"${case_dir}/stdout" 2>"${case_dir}/stderr"
+
+    if ! command cmp -s "${test_tmp}/tree/expected-input" "${case_dir}/fzf-input"; then
+        fail "${name}: shuffled records changed the hierarchy or child order"
+    elif command grep -aEq 'Orphan|orphan' "${case_dir}/fzf-input"; then
+        fail "${name}: orphaned records were rendered"
+    else
+        pass "${name}"
+    fi
+}
+
+# Literal tmux session IDs intentionally use '$'.
+# shellcheck disable=SC2016
+test_distinguishes_tree_targets_from_raw_queries() {
+    local name='reports stale tree targets and preserves unmatched-query creation'
+    local field_separator=$'\037' output case_dir
+
+    for output in "\$1${field_separator}session" 'new workspace'; do
+        case_dir="${test_tmp}/tree-outcome-${output// /-}"
+        mkdir -p "${case_dir}"
+        PATH="${fixture_bin}:${PATH}" \
+            FZF_STUB_VERSION='0.71.0' \
+            FZF_STUB_ARGS="${case_dir}/fzf-args" \
+            FZF_STUB_INPUT="${case_dir}/fzf-input" \
+            FZF_STUB_OUTPUT="${output}" \
+            TMUX_STUB_LOG="${case_dir}/tmux-log" \
+            TMUX_STUB_TARGET_EXISTS='false' \
+            TMUX_STUB_SESSIONS_OUTPUT="session${field_separator}\$1${field_separator}Work${field_separator}Work"$'\n' \
+            bash "${repo_dir}/select_pane.sh" \
+                false 'center,70%,80%' 'right,,,nowrap' \
+                'pane_id session_name window_name pane_title pane_current_command' \
+                tree plain 'pane_title pane_current_command' \
+                'session_name window_name' '│' '' '' '' '' \
+                false false false visible \
+                session_name 'window_index window_name' 'pane_index pane_title pane_current_command' \
+                '' '' '' >"${case_dir}/stdout" 2>"${case_dir}/stderr"
+    done
+
+    if ! command grep -q 'Selected session target no longer exists: \$1' \
+        "${test_tmp}/tree-outcome-\$1${field_separator}session/tmux-log"; then
+        fail "${name}: stale target error was not shown"
+    elif command grep -q 'new-window' "${test_tmp}/tree-outcome-\$1${field_separator}session/tmux-log"; then
+        fail "${name}: stale target entered the create-window flow"
+    elif ! command grep -q 'new workspace.*new-window -n "new workspace"' \
+        "${test_tmp}/tree-outcome-new-workspace/tmux-log"; then
+        fail "${name}: raw query was not preserved"
+    else
+        pass "${name}"
+    fi
+}
+
 test_rejects_old_fzf
 test_preserves_uncoloured_legacy_one_row
 test_renders_plain_two_row_records
@@ -742,6 +902,9 @@ test_optionally_jumps_directly_to_visible_panes
 test_optionally_refreshes_panes_and_preview
 test_regenerates_records_for_fzf_reload
 test_separates_only_two_row_entries_with_a_horizontal_rule
+test_renders_and_switches_tree_nodes
+test_joins_tree_records_by_stable_parent_ids
+test_distinguishes_tree_targets_from_raw_queries
 
 if [[ ${failures} -ne 0 ]]; then
     exit 1

@@ -10,6 +10,9 @@ separator_colour=''
 list_panes_colours=''
 row_1_colours=''
 row_2_colours=''
+tree_session_colours=''
+tree_window_colours=''
+tree_pane_colours=''
 
 # Converts a supported named or six-digit hexadecimal colour to an ANSI code.
 function colour_to_ansi() {
@@ -116,6 +119,14 @@ function format_row() {
     printf '%s' "${result}"
 }
 
+# Tree field separators are structural presentation, not shared layout config.
+function format_tree_row() {
+    local saved_separator_colour="${separator_colour}"
+    separator_colour=''
+    format_row "$1" '│' "${2:-}"
+    separator_colour="${saved_separator_colour}"
+}
+
 # Builds the one-row tmux format with the pane ID kept as the first field.
 function format_one_row() {
     local list_format="$1" positional_colours="${2:-}"
@@ -163,11 +174,81 @@ function generate_structured_records() {
     done < <(tmux list-panes -aF "${pane_format}")
 }
 
+# Emits the permanently expanded Session > Window > Pane hierarchy as
+# NUL-delimited fzf records. Stable target and node-type fields remain hidden;
+# the dim breadcrumb is deliberately visible so it participates in searching.
+function generate_tree_records() {
+    local session_format="$1" window_format="$2" pane_format="$3"
+    local record
+
+    while IFS= read -r -d "${record_separator}" record; do
+        printf '%s\0' "${record}"
+    done < <(
+        {
+            tmux list-sessions -F "session${field_separator}#{session_id}${field_separator}#{session_name}${field_separator}${session_format}"
+            tmux list-windows -aF "window${field_separator}#{session_id}${field_separator}#{window_id}${field_separator}#{window_name}${field_separator}${window_format}"
+            tmux list-panes -aF "pane${field_separator}#{window_id}${field_separator}#{pane_id}${field_separator}${pane_format}"
+        } | awk -F "${field_separator}" \
+            -v field_separator="${field_separator}" \
+            -v record_separator="${record_separator}" \
+            -v dim=$'\033[2m' \
+            -v reset="${ansi_reset}" '
+            $1 == "session" {
+                session_id = $2
+                session_order[++session_total] = session_id
+                session_name[session_id] = $3
+                session_label[session_id] = $4
+                next
+            }
+            $1 == "window" {
+                session_id = $2
+                window_id = $3
+                session_window[session_id, ++window_total[session_id]] = window_id
+                window_name[window_id] = $4
+                window_label[window_id] = $5
+                next
+            }
+            $1 == "pane" {
+                window_id = $2
+                pane_id = $3
+                window_pane[window_id, ++pane_total[window_id]] = pane_id
+                pane_label[pane_id] = $4
+            }
+            END {
+                for (session_index = 1; session_index <= session_total; session_index++) {
+                    session_id = session_order[session_index]
+                    printf "%s%ssession%s%s%s", session_id, field_separator, field_separator, session_label[session_id], record_separator
+
+                    for (window_index = 1; window_index <= window_total[session_id]; window_index++) {
+                        window_id = session_window[session_id, window_index]
+                        window_branch = window_index < window_total[session_id] ? "├─" : "└─"
+                        printf "%s%swindow%s  %s %s  %s%s%s%s", window_id, field_separator, field_separator, \
+                            window_branch, window_label[window_id], dim, session_name[session_id], reset, record_separator
+
+                        for (pane_index = 1; pane_index <= pane_total[window_id]; pane_index++) {
+                            pane_id = window_pane[window_id, pane_index]
+                            window_rail = window_index < window_total[session_id] ? "│ " : "  "
+                            pane_branch = pane_index < pane_total[window_id] ? "├─" : "└─"
+                            printf "%s%spane%s  %s %s %s  %s%s › %s%s%s", pane_id, field_separator, field_separator, \
+                                window_rail, pane_branch, pane_label[pane_id], dim, session_name[session_id], \
+                                window_name[window_id], reset, record_separator
+                        }
+                    }
+                }
+            }
+        '
+    )
+}
+
 # Generates pane records using the framing required by the selected layout.
 function generate_records() {
     local layout="$1" pane_format="$2"
     if [[ "${layout}" == 'two-row' ]]; then
         generate_structured_records "${pane_format}"
+    elif [[ "${layout}" == 'tree' ]]; then
+        generate_tree_records "${FZF_PANE_SWITCH_TREE_SESSION_FORMAT:?missing session format}" \
+            "${FZF_PANE_SWITCH_TREE_WINDOW_FORMAT:?missing window format}" \
+            "${FZF_PANE_SWITCH_TREE_PANE_FORMAT:?missing tree pane format}"
     else
         tmux list-panes -aF "${pane_format}"
     fi
@@ -259,13 +340,17 @@ function is_valid_positional_style() {
 
 # Configures fzf, handles optional actions, and switches to the selected pane.
 function select_pane() {
-    local action_index footer_text pane pane_id preview_command preview_window refresh_binding reload_command script_path
+    local action_index footer_text pane pane_id node_type preview_command preview_window refresh_binding reload_command script_path
     local -a border_styling=(
         --input-border "--input-label= Search " --info=inline-right
         --list-border "--list-label= Panes "
         --preview-border "--preview-label= Preview "
         "--ghost=type to search..."
     ) footer_keys=('Enter') footer_labels=('Switch') fzf_args preview_args=()
+
+    if [[ "${5}" == 'tree' ]]; then
+        border_styling[4]='--list-label= Targets '
+    fi
 
     # Check if we're using the fzf preview pane
     if [[ "${1}" = 'true' ]]; then
@@ -328,10 +413,14 @@ function select_pane() {
     fzf_args+=(
         --reverse
         --tmux "${2}"
-        --with-nth=2..
         --bind=enter:accept-or-print-query
         --with-shell "${fzf_shell} -c"
     )
+    if [[ "${5}" == 'tree' ]]; then
+        fzf_args+=(--with-nth=3..)
+    else
+        fzf_args+=(--with-nth=2..)
+    fi
     fzf_args+=("${border_styling[@]}" "${preview_args[@]}")
 
     if [[ "${4}" == *$'\033'* ]]; then
@@ -349,8 +438,27 @@ function select_pane() {
         )
         fzf_args+=(--gap=1 "--gap-line=─")
         pane=$(generate_records "${5}" "${4}" | fzf "${fzf_args[@]}")
+    elif [[ "${5}" == 'tree' ]]; then
+        fzf_args+=(
+            --read0
+            --delimiter "${field_separator}"
+            "--accept-nth={1}${field_separator}{2}"
+            --ansi
+        )
+        pane=$(generate_records "${5}" "${4}" | fzf "${fzf_args[@]}")
     else
         pane=$(generate_records "${5}" "${4}" | fzf "${fzf_args[@]}")
+    fi
+
+    if [[ "${5}" == 'tree' && "${pane}" == *"${field_separator}"* ]]; then
+        pane_id="${pane%%"${field_separator}"*}"
+        node_type="${pane#*"${field_separator}"}"
+        if ! tmux display-message -p -t "${pane_id}" '#{pane_id}' >/dev/null 2>&1; then
+            configuration_error "Selected ${node_type} target no longer exists: ${pane_id}"
+            return
+        fi
+        tmux switch-client -t "${pane_id}"
+        return
     fi
 
     # Set pane_id to first part of fzf output
@@ -453,10 +561,17 @@ case "${preview_pane_start}" in
         ;;
 esac
 
+tree_session_format="${18-session_name}"
+tree_window_format="${19-window_index window_name}"
+tree_pane_format="${20-pane_index pane_title pane_current_command}"
+tree_session_colours="${21:-}"
+tree_window_colours="${22:-}"
+tree_pane_colours="${23:-}"
+
 case "${layout}" in
-    one-row | two-row) ;;
+    one-row | two-row | tree) ;;
     *)
-        configuration_error "@fzf_pane_switch_layout must be one-row or two-row (got: ${layout})"
+        configuration_error "@fzf_pane_switch_layout must be one-row, two-row, or tree (got: ${layout})"
         exit 1
         ;;
 esac
@@ -491,21 +606,45 @@ if [[ "${layout}" == 'two-row' ]]; then
     fi
 fi
 
-if ! validate_colours; then
+if [[ "${layout}" == 'tree' ]]; then
+    for tree_level in session window pane; do
+        tree_format_variable="tree_${tree_level}_format"
+        tree_colour_variable="tree_${tree_level}_colours"
+        tree_format="${!tree_format_variable}"
+        tree_colours="${!tree_colour_variable}"
+        if [[ -z "${tree_format//[[:space:]]/}" ]]; then
+            configuration_error "@fzf_pane_switch_tree-${tree_level}-format must contain at least one tmux format"
+            exit 1
+        fi
+        if ! validate_row_colours "@fzf_pane_switch_tree-${tree_level}-colours" "${tree_format}" "${tree_colours}"; then
+            exit 1
+        fi
+    done
+fi
+
+if [[ "${layout}" != 'tree' ]] && ! validate_colours; then
     exit 1
 fi
 
-if ! validate_row_colours '@fzf_pane_switch_list-panes-colours' "${list_panes_format}" "${list_panes_colours}"; then
+if [[ "${layout}" == 'one-row' ]] && ! validate_row_colours '@fzf_pane_switch_list-panes-colours' "${list_panes_format}" "${list_panes_colours}"; then
     exit 1
 fi
 
 if [[ "${layout}" == 'two-row' ]]; then
     pane_format="$(structured_pane_format "${two_row_style}" "${row_1_format}" "${row_2_format}" "${value_separator}")"
+elif [[ "${layout}" == 'tree' ]]; then
+    pane_format='tree'
+    tree_session_tmux_format="$(format_tree_row "${tree_session_format}" "${tree_session_colours}")"
+    tree_window_tmux_format="$(format_tree_row "${tree_window_format}" "${tree_window_colours}")"
+    tree_pane_tmux_format="$(format_tree_row "${tree_pane_format}" "${tree_pane_colours}")"
 else
     pane_format="$(format_one_row "${list_panes_format}" "${list_panes_colours}")"
 fi
 
 export FZF_PANE_SWITCH_LAYOUT="${layout}"
 export FZF_PANE_SWITCH_PANE_FORMAT="${pane_format}"
+export FZF_PANE_SWITCH_TREE_SESSION_FORMAT="${tree_session_tmux_format:-}"
+export FZF_PANE_SWITCH_TREE_WINDOW_FORMAT="${tree_window_tmux_format:-}"
+export FZF_PANE_SWITCH_TREE_PANE_FORMAT="${tree_pane_tmux_format:-}"
 
 select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}" "${refresh}" "${preview_pane_start}"

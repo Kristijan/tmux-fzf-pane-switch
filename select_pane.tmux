@@ -16,6 +16,9 @@ default_layout='one-row'
 default_two_row_style='plain'
 default_row_1_format='pane_title pane_current_command'
 default_row_2_format='session_name window_name'
+default_tree_session_format='session_name'
+default_tree_window_format='window_index window_name'
+default_tree_pane_format='pane_index pane_title pane_current_command'
 default_separator='│'
 default_row_colours=''
 
@@ -37,6 +40,12 @@ tmux_separator="@fzf_pane_switch_separator"
 tmux_row_1_colours="@fzf_pane_switch_row-1-colours"
 tmux_row_2_colours="@fzf_pane_switch_row-2-colours"
 tmux_list_panes_colours="@fzf_pane_switch_list-panes-colours"
+tmux_tree_session_format="@fzf_pane_switch_tree-session-format"
+tmux_tree_window_format="@fzf_pane_switch_tree-window-format"
+tmux_tree_pane_format="@fzf_pane_switch_tree-pane-format"
+tmux_tree_session_colours="@fzf_pane_switch_tree-session-colours"
+tmux_tree_window_colours="@fzf_pane_switch_tree-window-colours"
+tmux_tree_pane_colours="@fzf_pane_switch_tree-pane-colours"
 
 # Reads a global tmux option, falling back to its default when it is unset or empty.
 get_tmux_option() {
@@ -86,6 +95,8 @@ set_switch_pane_bindings() {
     local bind_key preview_pane preview_pane_start footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
     local layout two_row_style row_1_format row_2_format separator separator_colour
     local list_panes_colours row_1_colours row_2_colours
+    local tree_session_format tree_window_format tree_pane_format
+    local tree_session_colours tree_window_colours tree_pane_colours
     local command argument
     bind_key="$(get_tmux_option "${tmux_bind_key}" "${default_bind_key}")"
     preview_pane="$(get_tmux_option "${tmux_preview_pane}" "${default_preview_pane}")"
@@ -105,6 +116,12 @@ set_switch_pane_bindings() {
     row_2_colours="$(get_tmux_option_allow_empty "${tmux_row_2_colours}" "${default_row_colours}")"
     list_panes_colours="$(get_tmux_option_allow_empty "${tmux_list_panes_colours}" "${default_row_colours}")"
     separator_colour="$(tmux show-option -gqv '@fzf_pane_switch_colour-separator')"
+    tree_session_format="$(get_tmux_option_allow_empty "${tmux_tree_session_format}" "${default_tree_session_format}")"
+    tree_window_format="$(get_tmux_option_allow_empty "${tmux_tree_window_format}" "${default_tree_window_format}")"
+    tree_pane_format="$(get_tmux_option_allow_empty "${tmux_tree_pane_format}" "${default_tree_pane_format}")"
+    tree_session_colours="$(get_tmux_option_allow_empty "${tmux_tree_session_colours}" "${default_row_colours}")"
+    tree_window_colours="$(get_tmux_option_allow_empty "${tmux_tree_window_colours}" "${default_row_colours}")"
+    tree_pane_colours="$(get_tmux_option_allow_empty "${tmux_tree_pane_colours}" "${default_row_colours}")"
 
     command="$(shell_quote "${CURRENT_DIR}/select_pane.sh")"
     for argument in \
@@ -124,7 +141,13 @@ set_switch_pane_bindings() {
         "${footer}" \
         "${jump_labels}" \
         "${refresh}" \
-        "${preview_pane_start}"; do
+        "${preview_pane_start}" \
+        "${tree_session_format}" \
+        "${tree_window_format}" \
+        "${tree_pane_format}" \
+        "${tree_session_colours}" \
+        "${tree_window_colours}" \
+        "${tree_pane_colours}"; do
         command+=" $(shell_quote "${argument}")"
     done
 
