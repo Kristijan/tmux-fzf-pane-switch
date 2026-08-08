@@ -24,9 +24,9 @@ set -g @fzf_pane_switch_bind-key "s"
 
 ### `@fzf_pane_switch_window-position`
 
-| Setting                 | Options                            | Default            |
-| ----------------------- | ---------------------------------- | ------------------ |
-| Popup size and position | Any value accepted by fzf `--tmux` | `center,70%,80%`   |
+| Setting                 | Options                            | Default          |
+| ----------------------- | ---------------------------------- | ---------------- |
+| Popup size and position | Any value accepted by fzf `--tmux` | `center,70%,80%` |
 
 ```bash
 set -g @fzf_pane_switch_window-position "center,70%,80%"
@@ -62,9 +62,9 @@ This setting has no effect when `@fzf_pane_switch_preview-pane` is `false`.
 
 ### `@fzf_pane_switch_preview-pane-position`
 
-| Setting                   | Options                                      | Default            |
-| ------------------------- | -------------------------------------------- | ------------------ |
-| Preview size and position | Any value accepted by fzf `--preview-window` | `right,,,nowrap`   |
+| Setting                   | Options                                      | Default          |
+| ------------------------- | -------------------------------------------- | ---------------- |
+| Preview size and position | Any value accepted by fzf `--preview-window` | `right,,,nowrap` |
 
 This setting applies when `@fzf_pane_switch_preview-pane` is `true`.
 
@@ -116,9 +116,9 @@ set -g @fzf_pane_switch_refresh "true"
 
 ### `@fzf_pane_switch_layout`
 
-| Setting     | Options                | Default   |
-| ----------- | ---------------------- | --------- |
-| Pane layout | `one-row`, `two-row`   | `one-row` |
+| Setting     | Options                      | Default   |
+| ----------- | ---------------------------- | --------- |
+| Pane layout | `one-row`, `two-row`, `tree` | `one-row` |
 
 ```bash
 set -g @fzf_pane_switch_layout "two-row"
@@ -133,11 +133,13 @@ session_name │ window_name
 
 The internal pane ID remains hidden and unsearchable in the two-row layout. Add `pane_id` to a row format when it should also be displayed and searchable. A horizontal rule separates two-row entries; the one-row layout adds no gaps or rules.
 
+The opt-in `tree` layout shows a permanently expanded Session > Window > Pane hierarchy. Every row is actionable: selecting a session switches to its active pane, selecting a window switches to its active pane, and selecting a pane switches to that exact pane. Window and pane rows include dim ancestry breadcrumbs that remain searchable when FZF filters away their ancestors.
+
 ### `@fzf_pane_switch_list-panes-format`
 
-| Setting        | Options                               | Default                                                                  |
-| -------------- | ------------------------------------- | ------------------------------------------------------------------------ |
-| One-row fields | Whitespace-separated tmux formats     | `pane_id session_name window_name pane_title pane_current_command`       |
+| Setting        | Options                           | Default                                                            |
+| -------------- | --------------------------------- | ------------------------------------------------------------------ |
+| One-row fields | Whitespace-separated tmux formats | `pane_id session_name window_name pane_title pane_current_command` |
 
 Fields are displayed and searched in the order given:
 
@@ -153,9 +155,9 @@ set -g @fzf_pane_switch_list-panes-format "s/%//:pane_id session_name window_nam
 
 ### `@fzf_pane_switch_two-row-style`
 
-| Setting              | Options                           | Default |
-| -------------------- | --------------------------------- | ------- |
-| Two-row presentation | `plain`, `indented`, `connected`  | `plain` |
+| Setting              | Options                          | Default |
+| -------------------- | -------------------------------- | ------- |
+| Two-row presentation | `plain`, `indented`, `connected` | `plain` |
 
 ```bash
 set -g @fzf_pane_switch_two-row-style "connected"
@@ -169,9 +171,9 @@ Accepted values are:
 
 ### `@fzf_pane_switch_row-1-format`
 
-| Setting          | Options                                       | Default                               |
-| ---------------- | --------------------------------------------- | ------------------------------------- |
-| First-row fields | One or more whitespace-separated tmux formats | `pane_title pane_current_command`     |
+| Setting          | Options                                       | Default                           |
+| ---------------- | --------------------------------------------- | --------------------------------- |
+| First-row fields | One or more whitespace-separated tmux formats | `pane_title pane_current_command` |
 
 The default configuration is:
 
@@ -183,9 +185,9 @@ At least one value is required.
 
 ### `@fzf_pane_switch_row-2-format`
 
-| Setting           | Options                                       | Default                       |
-| ----------------- | --------------------------------------------- | ----------------------------- |
-| Second-row fields | One or more whitespace-separated tmux formats | `session_name window_name`    |
+| Setting           | Options                                       | Default                    |
+| ----------------- | --------------------------------------------- | -------------------------- |
+| Second-row fields | One or more whitespace-separated tmux formats | `session_name window_name` |
 
 The default configuration is:
 
@@ -201,9 +203,9 @@ set -g @fzf_pane_switch_row-2-format "session_name window_name s|/Users/[^/]*|~|
 
 ### `@fzf_pane_switch_separator`
 
-| Setting         | Options                                                          | Default |
-| --------------- | ---------------------------------------------------------------- | ------- |
-| Field separator | Non-empty, single-line text without reserved control characters  | `│`     |
+| Setting         | Options                                                         | Default |
+| --------------- | --------------------------------------------------------------- | ------- |
+| Field separator | Non-empty, single-line text without reserved control characters | `│`     |
 
 The separator is placed between values in both rows.
 
@@ -221,6 +223,58 @@ set -g @fzf_pane_switch_two-row-style "connected"
 set -g @fzf_pane_switch_row-1-format "pane_title pane_current_command pane_pid"
 set -g @fzf_pane_switch_row-2-format "session_name window_name pane_current_path"
 set -g @fzf_pane_switch_separator "·"
+```
+
+## Tree presentation
+
+Tree-specific settings apply only when `@fzf_pane_switch_layout` is `tree`. Tree mode ignores the one-row and two-row format, style, separator, and colour settings. Conversely, the one-row and two-row layouts ignore all `tree-*` settings.
+
+### `@fzf_pane_switch_tree-session-format`
+
+| Setting        | Options                           | Default        |
+| -------------- | --------------------------------- | -------------- |
+| Session fields | Whitespace-separated tmux formats | `session_name` |
+
+```bash
+set -g @fzf_pane_switch_tree-session-format "session_name"
+```
+
+### `@fzf_pane_switch_tree-window-format`
+
+| Setting       | Options                           | Default                    |
+| ------------- | --------------------------------- | -------------------------- |
+| Window fields | Whitespace-separated tmux formats | `window_index window_name` |
+
+```bash
+set -g @fzf_pane_switch_tree-window-format "window_index window_name"
+```
+
+### `@fzf_pane_switch_tree-pane-format`
+
+| Setting     | Options                           | Default                                      |
+| ----------- | --------------------------------- | -------------------------------------------- |
+| Pane fields | Whitespace-separated tmux formats | `pane_index pane_title pane_current_command` |
+
+```bash
+set -g @fzf_pane_switch_tree-pane-format "pane_index pane_title pane_current_command"
+```
+
+These options use the same token syntax as the other layout formats. Session, window, and pane formats are evaluated by their corresponding tmux list command. Stable IDs used for hierarchy, preview, refresh, and switching are always added internally.
+
+### Tree positional colours
+
+The following options assign one positional style per configured field, using the same values and validation rules as the existing positional colour options:
+
+- `@fzf_pane_switch_tree-session-colours`
+- `@fzf_pane_switch_tree-window-colours`
+- `@fzf_pane_switch_tree-pane-colours`
+
+All default to empty (no explicit field colours). Tree connectors are plugin-controlled, and ancestry breadcrumbs are always dimmed.
+
+```bash
+set -g @fzf_pane_switch_tree-session-colours "blue:bold"
+set -g @fzf_pane_switch_tree-window-colours "yellow cyan"
+set -g @fzf_pane_switch_tree-pane-colours "none magenta green"
 ```
 
 ## Colours
@@ -272,9 +326,9 @@ set -g @fzf_pane_switch_row-2-colours "#f9e2af #cba6f7 #89b4fa"
 
 ### `@fzf_pane_switch_colour-separator`
 
-| Setting          | Options                                                    | Default |
-| ---------------- | ---------------------------------------------------------- | ------- |
-| Separator colour | Supported named colour or six-digit hexadecimal colour     | Unset   |
+| Setting          | Options                                                | Default |
+| ---------------- | ------------------------------------------------------ | ------- |
+| Separator colour | Supported named colour or six-digit hexadecimal colour | Unset   |
 
 ```bash
 set -g @fzf_pane_switch_colour-separator "#6c7086"

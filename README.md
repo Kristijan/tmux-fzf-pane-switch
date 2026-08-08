@@ -2,11 +2,19 @@
     🔀 TMUX FZF Pane Switch
 </h1>
 
-![Demonstration of tmux-fzf-pane-switch in action](assets/tmux-fzf-pane-switch-demo.gif)
-
+<p align="center">
 Switch to any TMUX pane, in any session, by searching and filtering using fzf.
+</p
 
-Search and filter on any pane details, such as (but not limited to) the `#{window_name}`, `#{pane_title}`, or `#{pane_current_command}`. If a pane cannot be found using the search criteria, the plugin will offer to create a new window in the current session.
+![Screenshot of tmux-fzf-pane-switch in tree layout](assets/tree.png)
+
+<p align="center">
+Search and filter on any pane details, such as (but not limited to) the <code>#{window_name}</code>, <code>#{pane_title}</code>, or <code>#{pane_current_command}</code>. If a pane cannot be found using the search criteria, the plugin will offer to create a new window in the current session.
+</p>
+
+| One Row                                                                     | Two Rows                                                                    |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ![Screenshot of tmux-fzf-pane-switch in one-row layout](assets/one-row.png) | ![Screenshot of tmux-fzf-pane-switch in two-row layout](assets/two-row.png) |
 
 ## Requirements
 
@@ -90,14 +98,17 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 
 ### Pane presentation
 
-| Setting                                                                                    | Description                                      |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------------ |
-| [`@fzf_pane_switch_layout`](CONFIGURATION.md#fzf_pane_switch_layout)                       | Selects the one-row or two-row pane layout.      |
-| [`@fzf_pane_switch_list-panes-format`](CONFIGURATION.md#fzf_pane_switch_list-panes-format) | Configures fields in the one-row layout.         |
-| [`@fzf_pane_switch_two-row-style`](CONFIGURATION.md#fzf_pane_switch_two-row-style)         | Selects the visual treatment of two-row entries. |
-| [`@fzf_pane_switch_row-1-format`](CONFIGURATION.md#fzf_pane_switch_row-1-format)           | Configures fields in the first row.              |
-| [`@fzf_pane_switch_row-2-format`](CONFIGURATION.md#fzf_pane_switch_row-2-format)           | Configures fields in the second row.             |
-| [`@fzf_pane_switch_separator`](CONFIGURATION.md#fzf_pane_switch_separator)                 | Sets the separator between values.               |
+| Setting                                                                                        | Description                                      |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| [`@fzf_pane_switch_layout`](CONFIGURATION.md#fzf_pane_switch_layout)                           | Selects the one-row, two-row, or tree layout.    |
+| [`@fzf_pane_switch_list-panes-format`](CONFIGURATION.md#fzf_pane_switch_list-panes-format)     | Configures fields in the one-row layout.         |
+| [`@fzf_pane_switch_two-row-style`](CONFIGURATION.md#fzf_pane_switch_two-row-style)             | Selects the visual treatment of two-row entries. |
+| [`@fzf_pane_switch_row-1-format`](CONFIGURATION.md#fzf_pane_switch_row-1-format)               | Configures fields in the first row.              |
+| [`@fzf_pane_switch_row-2-format`](CONFIGURATION.md#fzf_pane_switch_row-2-format)               | Configures fields in the second row.             |
+| [`@fzf_pane_switch_tree-session-format`](CONFIGURATION.md#fzf_pane_switch_tree-session-format) | Configures session rows in tree mode.            |
+| [`@fzf_pane_switch_tree-window-format`](CONFIGURATION.md#fzf_pane_switch_tree-window-format)   | Configures window rows in tree mode.             |
+| [`@fzf_pane_switch_tree-pane-format`](CONFIGURATION.md#fzf_pane_switch_tree-pane-format)       | Configures pane rows in tree mode.               |
+| [`@fzf_pane_switch_separator`](CONFIGURATION.md#fzf_pane_switch_separator)                     | Sets the separator between values.               |
 
 ### Colours
 
@@ -106,34 +117,14 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 | [`@fzf_pane_switch_list-panes-colours`](CONFIGURATION.md#fzf_pane_switch_list-panes-colours) | Assigns positional colours in the one-row layout. |
 | [`@fzf_pane_switch_row-1-colours`](CONFIGURATION.md#fzf_pane_switch_row-1-colours)           | Assigns positional colours in the first row.      |
 | [`@fzf_pane_switch_row-2-colours`](CONFIGURATION.md#fzf_pane_switch_row-2-colours)           | Assigns positional colours in the second row.     |
+| [Tree session/window/pane colour options](CONFIGURATION.md#tree-positional-colours)          | Assign positional colours to tree node fields.    |
 | [`@fzf_pane_switch_colour-separator`](CONFIGURATION.md#fzf_pane_switch_colour-separator)     | Sets the value-separator colour.                  |
 
-## Tools used in demonstration
+## Tools used in screenshots
 
-- TMUX theme is [catppuccin](https://github.com/catppuccin/tmux) mocha.
+- TMUX styling is [tmux-powerkit](https://github.com/fabioluciano/tmux-powerkit) with a custom catppuccin mocha theme.
 - ZSH shell prompt is [starship](https://starship.rs)
 - `fzf` theme is [catppuccin](https://github.com/catppuccin/fzf) mocha.
-
-<details>
-
-<summary>Configuration used in demonstration</summary>
-
-```bash
-set -g @plugin 'kristijan/fzf-pane-switch.tmux'
-## general
-set -g @fzf_pane_switch_footer "true"
-set -g @fzf_pane_switch_jump-labels "true"
-set -g @fzf_pane_switch_refresh "true"
-## row layout and style
-set -g @fzf_pane_switch_layout "two-row"
-## row format and colours
-set -g @fzf_pane_switch_row-1-format "pane_title pane_current_command"
-set -g @fzf_pane_switch_row-1-colours "blue magenta"
-set -g @fzf_pane_switch_row-2-format "session_name window_name s|/Users/[^/]*|~|:pane_current_path"
-set -g @fzf_pane_switch_row-2-colours "cyan yellow gray:italic"
-```
-
-</details>
 
 ## Inspiration
 
