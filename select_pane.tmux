@@ -5,6 +5,7 @@ CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Default values
 default_bind_key='s'
 default_preview_pane='true'
+default_footer='false'
 default_fzf_window_position='center,70%,80%'
 default_fzf_preview_window_position='right,,,nowrap'
 default_tmux_list_panes_format='pane_id session_name window_name pane_title pane_current_command'
@@ -18,6 +19,7 @@ default_row_colours=''
 # User overridable options
 tmux_bind_key="@fzf_pane_switch_bind-key"
 tmux_preview_pane="@fzf_pane_switch_preview-pane"
+tmux_footer="@fzf_pane_switch_footer"
 tmux_fzf_window_position="@fzf_pane_switch_window-position"
 tmux_fzf_preview_window_position="@fzf_pane_switch_preview-pane-position"
 tmux_list_panes_format="@fzf_pane_switch_list-panes-format"
@@ -68,12 +70,13 @@ shell_quote() {
 }
 
 set_switch_pane_bindings() {
-    local bind_key preview_pane fzf_window_position fzf_preview_window_position list_panes_format
+    local bind_key preview_pane footer fzf_window_position fzf_preview_window_position list_panes_format
     local layout two_row_style row_1_format row_2_format separator separator_colour
     local list_panes_colours row_1_colours row_2_colours
     local command argument
     bind_key="$(get_tmux_option "${tmux_bind_key}" "${default_bind_key}")"
     preview_pane="$(get_tmux_option "${tmux_preview_pane}" "${default_preview_pane}")"
+    footer="$(get_tmux_option "${tmux_footer}" "${default_footer}")"
     fzf_window_position="$(get_tmux_option "${tmux_fzf_window_position}" "${default_fzf_window_position}")"
     fzf_preview_window_position="$(get_tmux_option "${tmux_fzf_preview_window_position}" "${default_fzf_preview_window_position}")"
     list_panes_format="$(get_tmux_option "${tmux_list_panes_format}" "${default_tmux_list_panes_format}")"
@@ -101,7 +104,8 @@ set_switch_pane_bindings() {
         "${list_panes_colours}" \
         "${separator_colour}" \
         "${row_1_colours}" \
-        "${row_2_colours}"; do
+        "${row_2_colours}" \
+        "${footer}"; do
         command+=" $(shell_quote "${argument}")"
     done
 

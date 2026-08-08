@@ -93,6 +93,18 @@ Default is `true`
 
 When preview is enabled, press `Ctrl-/` to close or reopen the preview window.
 
+### fzf footer
+
+```bash
+set -g @fzf_pane_switch_footer "[true|false]"
+```
+
+Default is `false`, which leaves the footer hidden. When enabled, the footer lists
+the available pane-switch actions and their keys. Actions that are disabled, such
+as the preview when `@fzf_pane_switch_preview-pane` is `false`, are omitted.
+Keys are shown in bold brackets and action descriptions are dimmed, while both
+inherit the colours from your fzf theme.
+
 ### fzf pane preview position
 
 Only when `@fzf_pane_switch_preview-pane` is `true`.

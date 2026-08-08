@@ -228,8 +228,8 @@ function is_valid_positional_style() {
 
 function select_pane() {
     local fzf_version fzf_version_comparison
-    local pane pane_id preview_command
-    local -a border_styling=() fzf_args preview_args=()
+    local action_index footer_text pane pane_id preview_command
+    local -a border_styling=() footer_keys=('Enter') footer_labels=('Switch') fzf_args preview_args=()
 
     # Setup border styling
     # Specific fzf releases have added additional styling options.
@@ -264,6 +264,24 @@ function select_pane() {
             "--preview-window=${3}"
             --bind=ctrl-/:toggle-preview
         )
+        footer_keys+=('Ctrl-/')
+        footer_labels+=('Preview')
+    fi
+
+    if [[ "${6}" = 'true' ]]; then
+        footer_text='  '
+        for action_index in "${!footer_keys[@]}"; do
+            if [[ "${footer_text}" != '  ' ]]; then
+                footer_text+=$'  \033[2m·\033[0m  '
+            fi
+            footer_text+=$'\033[1m['
+            footer_text+="${footer_keys[action_index]}"
+            footer_text+=$']\033[0m \033[2m'
+            footer_text+="${footer_labels[action_index]}"
+            footer_text+=$'\033[0m'
+        done
+        footer_text+='  '
+        border_styling+=("--footer=${footer_text}")
     fi
 
     # fzf runs the preview command through $SHELL, and the preview uses POSIX
@@ -369,6 +387,15 @@ list_panes_colours="${10:-}"
 separator_colour="${11:-}"
 row_1_colours="${12:-}"
 row_2_colours="${13:-}"
+footer="${14-false}"
+
+case "${footer}" in
+    true | false) ;;
+    *)
+        configuration_error "@fzf_pane_switch_footer must be true or false (got: ${footer})"
+        exit 1
+        ;;
+esac
 
 case "${layout}" in
     one-row | two-row) ;;
@@ -422,4 +449,4 @@ else
     pane_format="$(format_one_row "${list_panes_format}" "${list_panes_colours}")"
 fi
 
-select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}"
+select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}"

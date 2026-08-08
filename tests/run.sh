@@ -349,6 +349,7 @@ test_tmux_entrypoint_passes_structured_configuration() {
         TMUX_STUB_ROW_1_COLOURS='#89b4fa none' \
         TMUX_STUB_ROW_2_COLOURS='#f9e2af none #89b4fa' \
         TMUX_STUB_SEPARATOR_COLOUR='bright-black' \
+        TMUX_STUB_FOOTER='true' \
         bash "${repo_dir}/select_pane.tmux"
 
     if ! command grep -q "two-row.*connected.*pane_title pane_current_command.*session_name window_name.*·" "${case_dir}/tmux-log"; then
@@ -357,6 +358,8 @@ test_tmux_entrypoint_passes_structured_configuration() {
         fail "${name}: positional colour arguments are missing from binding"
     elif ! command grep -q 'bright-black' "${case_dir}/tmux-log"; then
         fail "${name}: separator colour is missing from binding"
+    elif ! command grep -q "'true'$" "${case_dir}/tmux-log"; then
+        fail "${name}: footer setting is missing from binding"
     else
         pass "${name}"
     fi
@@ -480,6 +483,40 @@ test_toggles_the_preview_without_a_footer() {
     fi
 }
 
+test_optionally_shows_enabled_actions_in_the_footer() {
+    local name='shows enabled actions only when the optional footer is enabled'
+    local preview case_dir expected_footer
+
+    for preview in true false; do
+        case_dir="${test_tmp}/footer-${preview}"
+        mkdir -p "${case_dir}"
+        PATH="${fixture_bin}:${PATH}" \
+            FZF_STUB_VERSION='0.60.0' \
+            FZF_STUB_ARGS="${case_dir}/fzf-args" \
+            FZF_STUB_INPUT="${case_dir}/fzf-input" \
+            FZF_STUB_OUTPUT='%1' \
+            TMUX_STUB_LOG="${case_dir}/tmux-log" \
+            TMUX_STUB_EXPAND_FORMAT='true' \
+            bash "${repo_dir}/select_pane.sh" \
+                "${preview}" 'center,70%,80%' 'right,,,nowrap' \
+                'pane_id session_name window_name pane_title pane_current_command' \
+                one-row plain 'pane_title pane_current_command' \
+                'session_name window_name' '│' '' '' '' '' true \
+                >"${case_dir}/stdout" 2>"${case_dir}/stderr"
+    done
+
+    expected_footer=$'--footer=  \033[1m[Enter]\033[0m \033[2mSwitch\033[0m  \033[2m·\033[0m  \033[1m[Ctrl-/]\033[0m \033[2mPreview\033[0m  '
+    if ! command grep -Fxq -- "${expected_footer}" \
+        "${test_tmp}/footer-true/fzf-args"; then
+        fail "${name}: styled preview action was not shown"
+    elif ! command grep -Fxq -- $'--footer=  \033[1m[Enter]\033[0m \033[2mSwitch\033[0m  ' \
+        "${test_tmp}/footer-false/fzf-args"; then
+        fail "${name}: styled base action was not shown without preview"
+    else
+        pass "${name}"
+    fi
+}
+
 test_separates_only_two_row_entries_with_a_horizontal_rule() {
     local name='adds horizontal rules between two-row entries only'
     local layout case_dir
@@ -526,6 +563,7 @@ test_tmux_entrypoint_passes_structured_configuration
 test_rejects_invalid_structured_configuration
 test_preserves_selection_and_unmatched_query_outcomes
 test_toggles_the_preview_without_a_footer
+test_optionally_shows_enabled_actions_in_the_footer
 test_separates_only_two_row_entries_with_a_horizontal_rule
 
 if [[ ${failures} -ne 0 ]]; then
