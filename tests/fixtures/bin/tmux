@@ -16,6 +16,7 @@ case "${1:-}" in
             @fzf_pane_switch_list-panes-colours) printf '%s\n' "${TMUX_STUB_LIST_COLOURS:-}" ;;
             @fzf_pane_switch_colour-separator) printf '%s\n' "${TMUX_STUB_SEPARATOR_COLOUR:-}" ;;
             @fzf_pane_switch_footer) printf '%s\n' "${TMUX_STUB_FOOTER:-}" ;;
+            @fzf_pane_switch_jump-labels) printf '%s\n' "${TMUX_STUB_JUMP_LABELS:-}" ;;
         esac
         ;;
     show-options)

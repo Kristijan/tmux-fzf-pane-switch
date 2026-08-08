@@ -105,6 +105,16 @@ as the preview when `@fzf_pane_switch_preview-pane` is `false`, are omitted.
 Keys are shown in bold brackets and action descriptions are dimmed, while both
 inherit the colours from your fzf theme.
 
+### Jump directly to a visible pane
+
+```bash
+set -g @fzf_pane_switch_jump-labels "[true|false]"
+```
+
+Default is `false`. When enabled, press `Alt-J` to display a label on each
+visible pane, then press its label to switch to that pane immediately. If the
+optional footer is enabled, it also shows `[Alt-J] Jump`.
+
 ### fzf pane preview position
 
 Only when `@fzf_pane_switch_preview-pane` is `true`.

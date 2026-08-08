@@ -350,6 +350,7 @@ test_tmux_entrypoint_passes_structured_configuration() {
         TMUX_STUB_ROW_2_COLOURS='#f9e2af none #89b4fa' \
         TMUX_STUB_SEPARATOR_COLOUR='bright-black' \
         TMUX_STUB_FOOTER='true' \
+        TMUX_STUB_JUMP_LABELS='true' \
         bash "${repo_dir}/select_pane.tmux"
 
     if ! command grep -q "two-row.*connected.*pane_title pane_current_command.*session_name window_name.*·" "${case_dir}/tmux-log"; then
@@ -358,8 +359,8 @@ test_tmux_entrypoint_passes_structured_configuration() {
         fail "${name}: positional colour arguments are missing from binding"
     elif ! command grep -q 'bright-black' "${case_dir}/tmux-log"; then
         fail "${name}: separator colour is missing from binding"
-    elif ! command grep -q "'true'$" "${case_dir}/tmux-log"; then
-        fail "${name}: footer setting is missing from binding"
+    elif ! command grep -q "'true' 'true'$" "${case_dir}/tmux-log"; then
+        fail "${name}: footer or jump-label setting is missing from binding"
     else
         pass "${name}"
     fi
@@ -476,6 +477,8 @@ test_toggles_the_preview_without_a_footer() {
 
     if ! command grep -Fxq -- '--bind=ctrl-/:toggle-preview' "${case_dir}/fzf-args"; then
         fail "${name}: toggle binding was not supplied"
+    elif command grep -Fxq -- '--bind=alt-j:jump,jump:accept' "${case_dir}/fzf-args"; then
+        fail "${name}: disabled jump binding was supplied"
     elif command grep -q -- '^--footer=' "${case_dir}/fzf-args"; then
         fail "${name}: footer was supplied"
     else
@@ -515,6 +518,45 @@ test_optionally_shows_enabled_actions_in_the_footer() {
     else
         pass "${name}"
     fi
+}
+
+test_optionally_jumps_directly_to_visible_panes() {
+    local name='optionally binds jump labels across one-row and two-row layouts'
+    local layout case_dir expected_footer
+
+    for layout in one-row two-row; do
+        case_dir="${test_tmp}/jump-${layout}"
+        mkdir -p "${case_dir}"
+        PATH="${fixture_bin}:${PATH}" \
+            FZF_STUB_VERSION='0.60.0' \
+            FZF_STUB_HELP='--gap-line[=STR]' \
+            FZF_STUB_ARGS="${case_dir}/fzf-args" \
+            FZF_STUB_INPUT="${case_dir}/fzf-input" \
+            FZF_STUB_OUTPUT='%1' \
+            TMUX_STUB_LOG="${case_dir}/tmux-log" \
+            TMUX_STUB_EXPAND_FORMAT='true' \
+            bash "${repo_dir}/select_pane.sh" \
+                true 'center,70%,80%' 'right,,,nowrap' \
+                'pane_id session_name window_name pane_title pane_current_command' \
+                "${layout}" plain 'pane_title pane_current_command' \
+                'session_name window_name' '│' '' '' '' '' true true \
+                >"${case_dir}/stdout" 2>"${case_dir}/stderr"
+    done
+
+    expected_footer=$'--footer=  \033[1m[Enter]\033[0m \033[2mSwitch\033[0m  \033[2m·\033[0m  \033[1m[Ctrl-/]\033[0m \033[2mPreview\033[0m  \033[2m·\033[0m  \033[1m[Alt-J]\033[0m \033[2mJump\033[0m  '
+    for layout in one-row two-row; do
+        if ! command grep -Fxq -- '--bind=alt-j:jump,jump:accept' \
+            "${test_tmp}/jump-${layout}/fzf-args"; then
+            fail "${name}: ${layout} jump binding was not supplied"
+            return
+        elif ! command grep -Fxq -- "${expected_footer}" \
+            "${test_tmp}/jump-${layout}/fzf-args"; then
+            fail "${name}: ${layout} jump action was not shown in the footer"
+            return
+        fi
+    done
+
+    pass "${name}"
 }
 
 test_separates_only_two_row_entries_with_a_horizontal_rule() {
@@ -564,6 +606,7 @@ test_rejects_invalid_structured_configuration
 test_preserves_selection_and_unmatched_query_outcomes
 test_toggles_the_preview_without_a_footer
 test_optionally_shows_enabled_actions_in_the_footer
+test_optionally_jumps_directly_to_visible_panes
 test_separates_only_two_row_entries_with_a_horizontal_rule
 
 if [[ ${failures} -ne 0 ]]; then

@@ -268,6 +268,12 @@ function select_pane() {
         footer_labels+=('Preview')
     fi
 
+    if [[ "${7}" = 'true' ]]; then
+        fzf_args+=('--bind=alt-j:jump,jump:accept')
+        footer_keys+=('Alt-J')
+        footer_labels+=('Jump')
+    fi
+
     if [[ "${6}" = 'true' ]]; then
         footer_text='  '
         for action_index in "${!footer_keys[@]}"; do
@@ -289,7 +295,7 @@ function select_pane() {
     local fzf_shell
     fzf_shell="$(command -v bash || command -v sh)"
 
-    fzf_args=(
+    fzf_args+=(
         --reverse
         --tmux "${2}"
         --with-nth=2..
@@ -388,14 +394,22 @@ separator_colour="${11:-}"
 row_1_colours="${12:-}"
 row_2_colours="${13:-}"
 footer="${14-false}"
+jump_labels="${15-false}"
 
-case "${footer}" in
-    true | false) ;;
-    *)
-        configuration_error "@fzf_pane_switch_footer must be true or false (got: ${footer})"
-        exit 1
-        ;;
-esac
+for boolean_option in footer jump_labels; do
+    boolean_value="${!boolean_option}"
+    case "${boolean_value}" in
+        true | false) ;;
+        *)
+            if [[ "${boolean_option}" == 'footer' ]]; then
+                configuration_error "@fzf_pane_switch_footer must be true or false (got: ${boolean_value})"
+            else
+                configuration_error "@fzf_pane_switch_jump-labels must be true or false (got: ${boolean_value})"
+            fi
+            exit 1
+            ;;
+    esac
+done
 
 case "${layout}" in
     one-row | two-row) ;;
@@ -449,4 +463,4 @@ else
     pane_format="$(format_one_row "${list_panes_format}" "${list_panes_colours}")"
 fi
 
-select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}"
+select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}"
