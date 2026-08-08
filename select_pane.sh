@@ -11,6 +11,7 @@ list_panes_colours=''
 row_1_colours=''
 row_2_colours=''
 
+# Converts a supported named or six-digit hexadecimal colour to an ANSI code.
 function colour_to_ansi() {
     local colour hex red green blue
     colour=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
@@ -44,6 +45,7 @@ function colour_to_ansi() {
     esac
 }
 
+# Converts a supported text attribute to its ANSI code.
 function attribute_to_ansi() {
     local attribute
     attribute=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
@@ -57,6 +59,7 @@ function attribute_to_ansi() {
     esac
 }
 
+# Converts a positional colour and its optional attributes to ANSI codes.
 function positional_style_to_ansi() {
     local specification="$1" attribute
     local -a parts=()
@@ -67,6 +70,7 @@ function positional_style_to_ansi() {
     done
 }
 
+# Wraps a tmux format token in its configured positional style.
 function format_value() {
     local token="$1" positional_colour="${2:-none}" ansi=''
     case "${positional_colour}" in
@@ -80,6 +84,7 @@ function format_value() {
     fi
 }
 
+# Formats the separator placed between values, including its optional colour.
 function format_value_separator() {
     local separator="$1" ansi
     ansi="$(colour_to_ansi "${separator_colour}")"
@@ -90,6 +95,7 @@ function format_value_separator() {
     fi
 }
 
+# Builds one display row from tmux format tokens and positional colours.
 function format_row() {
     local row_format="$1" separator="$2" positional_colours="${3:-}"
     local token result='' formatted_separator positional_colour index
@@ -110,6 +116,7 @@ function format_row() {
     printf '%s' "${result}"
 }
 
+# Builds the one-row tmux format with the pane ID kept as the first field.
 function format_one_row() {
     local list_format="$1" positional_colours="${2:-}"
     local token positional_colour index result='#{pane_id} '
@@ -126,6 +133,7 @@ function format_one_row() {
     printf '%s' "${result}"
 }
 
+# Builds a two-row tmux format with the selected presentation style and record markers.
 function structured_pane_format() {
     local style="$1" row_1_format="$2" row_2_format="$3" separator="$4"
     local row_1 row_2
@@ -145,6 +153,7 @@ function structured_pane_format() {
     esac
 }
 
+# Converts tmux's marked two-row output into NUL-delimited records for fzf.
 function generate_structured_records() {
     local pane_format="$1" record
 
@@ -154,6 +163,7 @@ function generate_structured_records() {
     done < <(tmux list-panes -aF "${pane_format}")
 }
 
+# Generates pane records using the framing required by the selected layout.
 function generate_records() {
     local layout="$1" pane_format="$2"
     if [[ "${layout}" == 'two-row' ]]; then
@@ -163,17 +173,20 @@ function generate_records() {
     fi
 }
 
+# Quotes a value so it can be passed safely as one argument in a shell command.
 function shell_quote() {
     local value="$1"
     value="${value//\'/\'\\\'\'}"
     printf "'%s'" "${value}"
 }
 
+# Displays a configuration error in tmux and returns a failure status.
 function configuration_error() {
     tmux display-message "$1"
     return 1
 }
 
+# Reports whether a value is a supported named or six-digit hexadecimal colour.
 function is_valid_colour() {
     local colour
     colour=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
@@ -188,6 +201,7 @@ function is_valid_colour() {
     return 1
 }
 
+# Validates colour options that are not tied to a row position.
 function validate_colours() {
     if [[ -n "${separator_colour}" ]] && ! is_valid_colour "${separator_colour}"; then
         configuration_error "@fzf_pane_switch_colour-separator has an invalid colour value: ${separator_colour}"
@@ -195,6 +209,7 @@ function validate_colours() {
     fi
 }
 
+# Validates that positional colours match their row fields and use supported styles.
 function validate_row_colours() {
     local option="$1" row_format="$2" positional_colours="$3" colour
     local -a tokens=() colours=()
@@ -220,6 +235,7 @@ function validate_row_colours() {
     done
 }
 
+# Reports whether a positional colour and attribute specification is valid.
 function is_valid_positional_style() {
     local specification="$1" attribute normalised_attribute
     local -a parts=()
@@ -241,6 +257,7 @@ function is_valid_positional_style() {
     done
 }
 
+# Configures fzf, handles optional actions, and switches to the selected pane.
 function select_pane() {
     local action_index footer_text pane pane_id preview_command refresh_binding reload_command script_path
     local -a border_styling=(
@@ -348,6 +365,7 @@ function select_pane() {
     fi
 }
 
+# Compares semantic-style versions: 1 means newer, 2 older, and 0 equal.
 function vercomp() {
   local v1="$1"
   local v2="$2"
@@ -394,7 +412,7 @@ fi
 preview_pane="${1}"
 # FZF window position
 fzf_window_position="${2}"
-# FZF previe window position
+# fzf preview window position
 fzf_preview_window_position="${3}"
 list_panes_format="${4}"
 layout="${5-one-row}"

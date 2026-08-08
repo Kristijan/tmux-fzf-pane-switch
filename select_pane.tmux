@@ -36,6 +36,7 @@ tmux_row_1_colours="@fzf_pane_switch_row-1-colours"
 tmux_row_2_colours="@fzf_pane_switch_row-2-colours"
 tmux_list_panes_colours="@fzf_pane_switch_list-panes-colours"
 
+# Reads a global tmux option, falling back to its default when it is unset or empty.
 get_tmux_option() {
     local option="${1}"
     local default_value="${2}"
@@ -48,6 +49,8 @@ get_tmux_option() {
     fi
 }
 
+# Reports whether a global tmux option has been explicitly set, including to an
+# empty value.
 tmux_option_is_set() {
     local wanted_option="$1" option
     while read -r option _; do
@@ -58,6 +61,7 @@ tmux_option_is_set() {
     return 1
 }
 
+# Reads a global tmux option while preserving an explicitly configured empty value.
 get_tmux_option_allow_empty() {
     local option="$1" default_value="$2"
     if tmux_option_is_set "${option}"; then
@@ -67,12 +71,15 @@ get_tmux_option_allow_empty() {
     fi
 }
 
+# Quotes a value so it can be passed safely as one argument in a shell command.
 shell_quote() {
     local value="${1}"
     value="${value//\'/\'\\\'\'}"
     printf "'%s'" "${value}"
 }
 
+# Resolves the plugin configuration and registers the tmux key binding that
+# launches the pane switcher.
 set_switch_pane_bindings() {
     local bind_key preview_pane footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
     local layout two_row_style row_1_format row_2_format separator separator_colour
