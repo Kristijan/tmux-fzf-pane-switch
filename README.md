@@ -10,11 +10,8 @@ Search and filter on any pane details, such as (but not limited to) the `#{windo
 
 ## Requirements
 
-* [fzf](https://github.com/junegunn/fzf) >= 0.60.0 (requires multiline records and `--accept-nth`). I tested with 0.74.2.
+* [fzf](https://github.com/junegunn/fzf) >= 0.71.0 (requires cross-reload item identity with `--id-nth`). I tested with 0.74.2.
 * [tmux](https://github.com/tmux/tmux) >= 3.3. I tested with 3.7b.
-
-> [!NOTE]
-> fzf 0.61.0 or later also enables search-field ghost text.
 
 ## Installation
 
@@ -114,6 +111,17 @@ set -g @fzf_pane_switch_jump-labels "[true|false]"
 Default is `false`. When enabled, press `Alt-J` to display a label on each
 visible pane, then press its label to switch to that pane immediately. If the
 optional footer is enabled, it also shows `[Alt-J] Jump`.
+
+### Refresh panes
+
+```bash
+set -g @fzf_pane_switch_refresh "[true|false]"
+```
+
+Default is `false`. When enabled, press `Ctrl-R` to regenerate the pane list
+while preserving the query and tracking the highlighted pane by its pane ID.
+If the preview is enabled, its contents are recaptured as part of the refresh.
+If the optional footer is enabled, it also shows `[Ctrl-R] Refresh`.
 
 ### fzf pane preview position
 

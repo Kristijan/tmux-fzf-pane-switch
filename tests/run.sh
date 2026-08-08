@@ -19,13 +19,13 @@ pass() {
 }
 
 test_rejects_old_fzf() {
-    local name='rejects fzf older than 0.60 before opening the pane list'
+    local name='rejects fzf older than 0.71 before opening the pane list'
     local case_dir="${test_tmp}/old-fzf"
     local status
     mkdir -p "${case_dir}"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.59.0' \
+        FZF_STUB_VERSION='0.70.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         TMUX_STUB_LOG="${case_dir}/tmux-log" \
@@ -39,7 +39,7 @@ test_rejects_old_fzf() {
         fail "${name}: command succeeded"
     elif [[ -e "${case_dir}/fzf-input" ]]; then
         fail "${name}: fzf pane list was launched"
-    elif ! command grep -q 'fzf 0.60.0 or later is required' "${case_dir}/tmux-log"; then
+    elif ! command grep -q 'fzf 0.71.0 or later is required' "${case_dir}/tmux-log"; then
         fail "${name}: clear tmux error was not shown"
     else
         pass "${name}"
@@ -53,7 +53,7 @@ test_preserves_uncoloured_legacy_one_row() {
     printf '%%1 %%1 work editor Title nvim \n' > "${case_dir}/expected-input"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         FZF_STUB_OUTPUT='%1' \
@@ -84,7 +84,7 @@ test_renders_plain_two_row_records() {
     printf '%%1%sTitle │ nvim\nwork │ editor\0' "${field_separator}" > "${expected_input}"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         FZF_STUB_OUTPUT='%1' \
@@ -118,7 +118,7 @@ test_rejects_unknown_layout() {
     mkdir -p "${case_dir}"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         TMUX_STUB_LOG="${case_dir}/tmux-log" \
@@ -158,7 +158,7 @@ test_renders_optional_two_row_styles() {
         printf '%%1%s%s\0' "${field_separator}" "${expected}" > "${case_dir}/expected-input"
 
         PATH="${fixture_bin}:${PATH}" \
-            FZF_STUB_VERSION='0.60.0' \
+            FZF_STUB_VERSION='0.71.0' \
             FZF_STUB_ARGS="${case_dir}/fzf-args" \
             FZF_STUB_INPUT="${case_dir}/fzf-input" \
             FZF_STUB_OUTPUT='%1' \
@@ -198,7 +198,7 @@ test_colours_fields_and_separators_without_bleeding() {
     printf '%%1%s%s\0' "${field_separator}" "${expected_display}" > "${case_dir}/expected-input"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         FZF_STUB_OUTPUT='%1' \
@@ -239,7 +239,7 @@ test_colours_complex_row_values_by_position() {
     printf '%%1%s%s\0' "${field_separator}" "${expected_display}" > "${case_dir}/expected-input"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_HELP='--gap-line[=STR]' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
@@ -277,7 +277,7 @@ test_styles_positional_colours_with_ansi_attributes() {
     printf '%%1%s%s\0' "${field_separator}" "${expected_display}" > "${case_dir}/expected-input"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_HELP='--gap-line[=STR]' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
@@ -309,7 +309,7 @@ test_colours_one_row_without_changing_legacy_layout() {
     printf '%s' "${expected}" > "${case_dir}/expected-input"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         FZF_STUB_OUTPUT='%1' \
@@ -351,6 +351,7 @@ test_tmux_entrypoint_passes_structured_configuration() {
         TMUX_STUB_SEPARATOR_COLOUR='bright-black' \
         TMUX_STUB_FOOTER='true' \
         TMUX_STUB_JUMP_LABELS='true' \
+        TMUX_STUB_REFRESH='true' \
         bash "${repo_dir}/select_pane.tmux"
 
     if ! command grep -q "two-row.*connected.*pane_title pane_current_command.*session_name window_name.*·" "${case_dir}/tmux-log"; then
@@ -359,8 +360,8 @@ test_tmux_entrypoint_passes_structured_configuration() {
         fail "${name}: positional colour arguments are missing from binding"
     elif ! command grep -q 'bright-black' "${case_dir}/tmux-log"; then
         fail "${name}: separator colour is missing from binding"
-    elif ! command grep -q "'true' 'true'$" "${case_dir}/tmux-log"; then
-        fail "${name}: footer or jump-label setting is missing from binding"
+    elif ! command grep -q "'true' 'true' 'true'$" "${case_dir}/tmux-log"; then
+        fail "${name}: footer, jump-label, or refresh setting is missing from binding"
     else
         pass "${name}"
     fi
@@ -374,7 +375,7 @@ assert_invalid_configuration() {
     mkdir -p "${case_dir}"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         TMUX_STUB_LOG="${case_dir}/tmux-log" \
@@ -434,7 +435,7 @@ test_preserves_selection_and_unmatched_query_outcomes() {
         case_dir="${test_tmp}/outcome-${output// /-}"
         mkdir -p "${case_dir}"
         PATH="${fixture_bin}:${PATH}" \
-            FZF_STUB_VERSION='0.60.0' \
+            FZF_STUB_VERSION='0.71.0' \
             FZF_STUB_ARGS="${case_dir}/fzf-args" \
             FZF_STUB_INPUT="${case_dir}/fzf-input" \
             FZF_STUB_OUTPUT="${output}" \
@@ -464,7 +465,7 @@ test_toggles_the_preview_without_a_footer() {
     mkdir -p "${case_dir}"
 
     PATH="${fixture_bin}:${PATH}" \
-        FZF_STUB_VERSION='0.60.0' \
+        FZF_STUB_VERSION='0.71.0' \
         FZF_STUB_ARGS="${case_dir}/fzf-args" \
         FZF_STUB_INPUT="${case_dir}/fzf-input" \
         FZF_STUB_OUTPUT='%1' \
@@ -479,6 +480,8 @@ test_toggles_the_preview_without_a_footer() {
         fail "${name}: toggle binding was not supplied"
     elif command grep -Fxq -- '--bind=alt-j:jump,jump:accept' "${case_dir}/fzf-args"; then
         fail "${name}: disabled jump binding was supplied"
+    elif command grep -q -- '^--bind=ctrl-r:track-current+reload-sync' "${case_dir}/fzf-args"; then
+        fail "${name}: disabled refresh binding was supplied"
     elif command grep -q -- '^--footer=' "${case_dir}/fzf-args"; then
         fail "${name}: footer was supplied"
     else
@@ -494,7 +497,7 @@ test_optionally_shows_enabled_actions_in_the_footer() {
         case_dir="${test_tmp}/footer-${preview}"
         mkdir -p "${case_dir}"
         PATH="${fixture_bin}:${PATH}" \
-            FZF_STUB_VERSION='0.60.0' \
+            FZF_STUB_VERSION='0.71.0' \
             FZF_STUB_ARGS="${case_dir}/fzf-args" \
             FZF_STUB_INPUT="${case_dir}/fzf-input" \
             FZF_STUB_OUTPUT='%1' \
@@ -528,7 +531,7 @@ test_optionally_jumps_directly_to_visible_panes() {
         case_dir="${test_tmp}/jump-${layout}"
         mkdir -p "${case_dir}"
         PATH="${fixture_bin}:${PATH}" \
-            FZF_STUB_VERSION='0.60.0' \
+            FZF_STUB_VERSION='0.71.0' \
             FZF_STUB_HELP='--gap-line[=STR]' \
             FZF_STUB_ARGS="${case_dir}/fzf-args" \
             FZF_STUB_INPUT="${case_dir}/fzf-input" \
@@ -559,6 +562,75 @@ test_optionally_jumps_directly_to_visible_panes() {
     pass "${name}"
 }
 
+test_optionally_refreshes_panes_and_preview() {
+    local name='optionally refreshes pane records and preview while tracking the pane ID'
+    local layout preview case_dir expected_footer
+
+    for layout in one-row two-row; do
+        for preview in true false; do
+            case_dir="${test_tmp}/refresh-${layout}-${preview}"
+            mkdir -p "${case_dir}"
+            PATH="${fixture_bin}:${PATH}" \
+                FZF_STUB_VERSION='0.71.0' \
+                FZF_STUB_HELP='--gap-line[=STR]' \
+                FZF_STUB_ARGS="${case_dir}/fzf-args" \
+                FZF_STUB_INPUT="${case_dir}/fzf-input" \
+                FZF_STUB_OUTPUT='%1' \
+                TMUX_STUB_LOG="${case_dir}/tmux-log" \
+                TMUX_STUB_EXPAND_FORMAT='true' \
+                bash "${repo_dir}/select_pane.sh" \
+                    "${preview}" 'center,70%,80%' 'right,,,nowrap' \
+                    'pane_id session_name window_name pane_title pane_current_command' \
+                    "${layout}" plain 'pane_title pane_current_command' \
+                    'session_name window_name' '│' '' '' '' '' true false true \
+                    >"${case_dir}/stdout" 2>"${case_dir}/stderr"
+        done
+    done
+
+    expected_footer=$'--footer=  \033[1m[Enter]\033[0m \033[2mSwitch\033[0m  \033[2m·\033[0m  \033[1m[Ctrl-/]\033[0m \033[2mPreview\033[0m  \033[2m·\033[0m  \033[1m[Ctrl-R]\033[0m \033[2mRefresh\033[0m  '
+    for layout in one-row two-row; do
+        if ! command grep -Eq -- "^--bind=ctrl-r:track-current\+reload-sync\('.*/select_pane\.sh' --records\)\+refresh-preview$" \
+            "${test_tmp}/refresh-${layout}-true/fzf-args"; then
+            fail "${name}: ${layout} preview refresh binding was not supplied"
+            return
+        elif ! command grep -Eq -- "^--bind=ctrl-r:track-current\+reload-sync\('.*/select_pane\.sh' --records\)$" \
+            "${test_tmp}/refresh-${layout}-false/fzf-args"; then
+            fail "${name}: ${layout} list-only refresh binding was not supplied"
+            return
+        elif ! command grep -Fxq -- '--id-nth=1' "${test_tmp}/refresh-${layout}-true/fzf-args"; then
+            fail "${name}: ${layout} pane-ID tracking was not supplied"
+            return
+        elif ! command grep -Fxq -- "${expected_footer}" \
+            "${test_tmp}/refresh-${layout}-true/fzf-args"; then
+            fail "${name}: ${layout} refresh action was not shown in the footer"
+            return
+        fi
+    done
+
+    pass "${name}"
+}
+
+test_regenerates_records_for_fzf_reload() {
+    local name='regenerates configured records through the internal reload command'
+    local case_dir="${test_tmp}/reload-records"
+    mkdir -p "${case_dir}"
+
+    PATH="${fixture_bin}:${PATH}" \
+        TMUX_STUB_LOG="${case_dir}/tmux-log" \
+        TMUX_STUB_EXPAND_FORMAT='true' \
+        FZF_PANE_SWITCH_LAYOUT='two-row' \
+        FZF_PANE_SWITCH_PANE_FORMAT=$'#{pane_id}\037#{pane_title}\n#{session_name}\036' \
+        bash "${repo_dir}/select_pane.sh" --records >"${case_dir}/records"
+
+    if ! command grep -q 'list-panes -aF' "${case_dir}/tmux-log"; then
+        fail "${name}: panes were not requested from tmux"
+    elif [[ "$(command tr '\0' '|' < "${case_dir}/records")" != $'%1\037Title\nwork|' ]]; then
+        fail "${name}: two-row record framing was not preserved"
+    else
+        pass "${name}"
+    fi
+}
+
 test_separates_only_two_row_entries_with_a_horizontal_rule() {
     local name='adds horizontal rules between two-row entries only'
     local layout case_dir
@@ -567,7 +639,7 @@ test_separates_only_two_row_entries_with_a_horizontal_rule() {
         case_dir="${test_tmp}/gap-${layout}"
         mkdir -p "${case_dir}"
         PATH="${fixture_bin}:${PATH}" \
-            FZF_STUB_VERSION='0.60.0' \
+            FZF_STUB_VERSION='0.71.0' \
             FZF_STUB_HELP='--gap-line[=STR]' \
             FZF_STUB_ARGS="${case_dir}/fzf-args" \
             FZF_STUB_INPUT="${case_dir}/fzf-input" \
@@ -607,6 +679,8 @@ test_preserves_selection_and_unmatched_query_outcomes
 test_toggles_the_preview_without_a_footer
 test_optionally_shows_enabled_actions_in_the_footer
 test_optionally_jumps_directly_to_visible_panes
+test_optionally_refreshes_panes_and_preview
+test_regenerates_records_for_fzf_reload
 test_separates_only_two_row_entries_with_a_horizontal_rule
 
 if [[ ${failures} -ne 0 ]]; then

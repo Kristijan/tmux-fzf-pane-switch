@@ -154,6 +154,21 @@ function generate_structured_records() {
     done < <(tmux list-panes -aF "${pane_format}")
 }
 
+function generate_records() {
+    local layout="$1" pane_format="$2"
+    if [[ "${layout}" == 'two-row' ]]; then
+        generate_structured_records "${pane_format}"
+    else
+        tmux list-panes -aF "${pane_format}"
+    fi
+}
+
+function shell_quote() {
+    local value="$1"
+    value="${value//\'/\'\\\'\'}"
+    printf "'%s'" "${value}"
+}
+
 function configuration_error() {
     tmux display-message "$1"
     return 1
@@ -227,31 +242,13 @@ function is_valid_positional_style() {
 }
 
 function select_pane() {
-    local fzf_version fzf_version_comparison
-    local action_index footer_text pane pane_id preview_command
-    local -a border_styling=() footer_keys=('Enter') footer_labels=('Switch') fzf_args preview_args=()
-
-    # Setup border styling
-    # Specific fzf releases have added additional styling options.
-    fzf_version=$(fzf --version | awk '{print $1}')
-    # - 0.58.0 or later, we can enable border styling
-    vercomp '0.58.0' "${fzf_version}"
-    fzf_version_comparison=$?
-    if [[ ${fzf_version_comparison} -ne 1 ]]; then
-        border_styling+=(--input-border "--input-label= Search " --info=inline-right)
-        border_styling+=(--list-border "--list-label= Panes ")
-        border_styling+=(--preview-border "--preview-label= Preview ")
-    fi
-    # - 0.61.0 or later, we can enable ghost text
-    vercomp '0.61.0' "${fzf_version}"
-    fzf_version_comparison=$?
-    if [[ ${fzf_version_comparison} -ne 1 ]]; then
-        border_styling+=("--ghost=type to search...")
-    fi
-    # Fallback to old border styling used in tmux-fzf-pane-switch release v1.1.2 if $border_styling is not set
-    if [[ ${#border_styling[@]} -eq 0 ]]; then
-        border_styling+=("--preview-label=pane preview")
-    fi
+    local action_index footer_text pane pane_id preview_command refresh_binding reload_command script_path
+    local -a border_styling=(
+        --input-border "--input-label= Search " --info=inline-right
+        --list-border "--list-label= Panes "
+        --preview-border "--preview-label= Preview "
+        "--ghost=type to search..."
+    ) footer_keys=('Enter') footer_labels=('Switch') fzf_args preview_args=()
 
     # Check if we're using the fzf preview pane
     if [[ "${1}" = 'true' ]]; then
@@ -272,6 +269,18 @@ function select_pane() {
         fzf_args+=('--bind=alt-j:jump,jump:accept')
         footer_keys+=('Alt-J')
         footer_labels+=('Jump')
+    fi
+
+    if [[ "${8}" = 'true' ]]; then
+        script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+        reload_command="$(shell_quote "${script_path}") --records"
+        refresh_binding="ctrl-r:track-current+reload-sync(${reload_command})"
+        if [[ "${1}" = 'true' ]]; then
+            refresh_binding+='+refresh-preview'
+        fi
+        fzf_args+=("--bind=${refresh_binding}" --id-nth=1)
+        footer_keys+=('Ctrl-R')
+        footer_labels+=('Refresh')
     fi
 
     if [[ "${6}" = 'true' ]]; then
@@ -317,12 +326,10 @@ function select_pane() {
             --multi-line
             --highlight-line
         )
-        if fzf --help 2>/dev/null | grep -q -- '--gap-line'; then
-            fzf_args+=(--gap=1 "--gap-line=─")
-        fi
-        pane=$(generate_structured_records "${4}" | fzf "${fzf_args[@]}")
+        fzf_args+=(--gap=1 "--gap-line=─")
+        pane=$(generate_records "${5}" "${4}" | fzf "${fzf_args[@]}")
     else
-        pane=$(tmux list-panes -aF "${4}" | fzf "${fzf_args[@]}")
+        pane=$(generate_records "${5}" "${4}" | fzf "${fzf_args[@]}")
     fi
 
     # Set pane_id to first part of fzf output
@@ -368,12 +375,18 @@ function vercomp() {
 
 # Check for required commands
 command -v tmux >/dev/null 2>&1 || { echo "tmux not found"; exit 1; }
+
+if [[ "${1:-}" == '--records' ]]; then
+    generate_records "${FZF_PANE_SWITCH_LAYOUT:-one-row}" "${FZF_PANE_SWITCH_PANE_FORMAT:?missing pane format}"
+    exit
+fi
+
 command -v fzf >/dev/null 2>&1 || { echo "fzf not found"; exit 1; }
 
 fzf_version=$(fzf --version | awk '{print $1}')
-vercomp '0.60.0' "${fzf_version}"
+vercomp '0.71.0' "${fzf_version}"
 if [[ $? -eq 1 ]]; then
-    tmux display-message "fzf 0.60.0 or later is required (found ${fzf_version})"
+    tmux display-message "fzf 0.71.0 or later is required (found ${fzf_version})"
     exit 1
 fi
 
@@ -395,17 +408,15 @@ row_1_colours="${12:-}"
 row_2_colours="${13:-}"
 footer="${14-false}"
 jump_labels="${15-false}"
+refresh="${16-false}"
 
-for boolean_option in footer jump_labels; do
+for boolean_option in footer jump_labels refresh; do
     boolean_value="${!boolean_option}"
     case "${boolean_value}" in
         true | false) ;;
         *)
-            if [[ "${boolean_option}" == 'footer' ]]; then
-                configuration_error "@fzf_pane_switch_footer must be true or false (got: ${boolean_value})"
-            else
-                configuration_error "@fzf_pane_switch_jump-labels must be true or false (got: ${boolean_value})"
-            fi
+            option_name="${boolean_option//_/-}"
+            configuration_error "@fzf_pane_switch_${option_name} must be true or false (got: ${boolean_value})"
             exit 1
             ;;
     esac
@@ -463,4 +474,7 @@ else
     pane_format="$(format_one_row "${list_panes_format}" "${list_panes_colours}")"
 fi
 
-select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}"
+export FZF_PANE_SWITCH_LAYOUT="${layout}"
+export FZF_PANE_SWITCH_PANE_FORMAT="${pane_format}"
+
+select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}" "${refresh}"
