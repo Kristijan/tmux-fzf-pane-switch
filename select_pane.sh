@@ -259,7 +259,7 @@ function is_valid_positional_style() {
 
 # Configures fzf, handles optional actions, and switches to the selected pane.
 function select_pane() {
-    local action_index footer_text pane pane_id preview_command refresh_binding reload_command script_path
+    local action_index footer_text pane pane_id preview_command preview_window refresh_binding reload_command script_path
     local -a border_styling=(
         --input-border "--input-label= Search " --info=inline-right
         --list-border "--list-label= Panes "
@@ -269,13 +269,17 @@ function select_pane() {
 
     # Check if we're using the fzf preview pane
     if [[ "${1}" = 'true' ]]; then
+        preview_window="${3}"
+        if [[ "${9}" == 'hidden' ]]; then
+            preview_window+=',hidden'
+        fi
         preview_command="tmux capture-pane -ep -S -\$(( \${FZF_PREVIEW_LINES:-30} )) -t {1} | "
         # The awk below removes trailing empty/whitespace-only lines by finding the last non-empty line and printing up to that point
         preview_command+="awk '{a[NR]=\$0} END{for(i=NR;i>0;i--) if(a[i]~/[^ \\t]/){for(j=1;j<=i;j++) print a[j]; exit}}' | "
         preview_command+="tail -n \$(( \${FZF_PREVIEW_LINES:-30} ))"
         preview_args=(
             --preview "${preview_command}"
-            "--preview-window=${3}"
+            "--preview-window=${preview_window}"
             --bind=ctrl-/:toggle-preview
         )
         footer_keys+=('Ctrl-/')
@@ -427,6 +431,7 @@ row_2_colours="${13:-}"
 footer="${14-false}"
 jump_labels="${15-false}"
 refresh="${16-false}"
+preview_pane_start="${17-visible}"
 
 for boolean_option in footer jump_labels refresh; do
     boolean_value="${!boolean_option}"
@@ -439,6 +444,14 @@ for boolean_option in footer jump_labels refresh; do
             ;;
     esac
 done
+
+case "${preview_pane_start}" in
+    visible | hidden) ;;
+    *)
+        configuration_error "@fzf_pane_switch_preview-pane-start must be visible or hidden (got: ${preview_pane_start})"
+        exit 1
+        ;;
+esac
 
 case "${layout}" in
     one-row | two-row) ;;
@@ -495,4 +508,4 @@ fi
 export FZF_PANE_SWITCH_LAYOUT="${layout}"
 export FZF_PANE_SWITCH_PANE_FORMAT="${pane_format}"
 
-select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}" "${refresh}"
+select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}" "${refresh}" "${preview_pane_start}"

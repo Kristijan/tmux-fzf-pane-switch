@@ -5,6 +5,7 @@ CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Default values
 default_bind_key='s'
 default_preview_pane='true'
+default_preview_pane_start='visible'
 default_footer='false'
 default_jump_labels='false'
 default_refresh='false'
@@ -21,6 +22,7 @@ default_row_colours=''
 # User overridable options
 tmux_bind_key="@fzf_pane_switch_bind-key"
 tmux_preview_pane="@fzf_pane_switch_preview-pane"
+tmux_preview_pane_start="@fzf_pane_switch_preview-pane-start"
 tmux_footer="@fzf_pane_switch_footer"
 tmux_jump_labels="@fzf_pane_switch_jump-labels"
 tmux_refresh="@fzf_pane_switch_refresh"
@@ -81,12 +83,13 @@ shell_quote() {
 # Resolves the plugin configuration and registers the tmux key binding that
 # launches the pane switcher.
 set_switch_pane_bindings() {
-    local bind_key preview_pane footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
+    local bind_key preview_pane preview_pane_start footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
     local layout two_row_style row_1_format row_2_format separator separator_colour
     local list_panes_colours row_1_colours row_2_colours
     local command argument
     bind_key="$(get_tmux_option "${tmux_bind_key}" "${default_bind_key}")"
     preview_pane="$(get_tmux_option "${tmux_preview_pane}" "${default_preview_pane}")"
+    preview_pane_start="$(get_tmux_option "${tmux_preview_pane_start}" "${default_preview_pane_start}")"
     footer="$(get_tmux_option "${tmux_footer}" "${default_footer}")"
     jump_labels="$(get_tmux_option "${tmux_jump_labels}" "${default_jump_labels}")"
     refresh="$(get_tmux_option "${tmux_refresh}" "${default_refresh}")"
@@ -120,7 +123,8 @@ set_switch_pane_bindings() {
         "${row_2_colours}" \
         "${footer}" \
         "${jump_labels}" \
-        "${refresh}"; do
+        "${refresh}" \
+        "${preview_pane_start}"; do
         command+=" $(shell_quote "${argument}")"
     done
 

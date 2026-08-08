@@ -18,6 +18,7 @@ case "${1:-}" in
             @fzf_pane_switch_footer) printf '%s\n' "${TMUX_STUB_FOOTER:-}" ;;
             @fzf_pane_switch_jump-labels) printf '%s\n' "${TMUX_STUB_JUMP_LABELS:-}" ;;
             @fzf_pane_switch_refresh) printf '%s\n' "${TMUX_STUB_REFRESH:-}" ;;
+            @fzf_pane_switch_preview-pane-start) printf '%s\n' "${TMUX_STUB_PREVIEW_PANE_START:-}" ;;
         esac
         ;;
     show-options)

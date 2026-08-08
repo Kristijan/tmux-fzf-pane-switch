@@ -82,6 +82,7 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 | [`@fzf_pane_switch_bind-key`](CONFIGURATION.md#fzf_pane_switch_bind-key) | tmux key binding that opens the pane switcher. |
 | [`@fzf_pane_switch_window-position`](CONFIGURATION.md#fzf_pane_switch_window-position) | Size and position of the fzf tmux popup. |
 | [`@fzf_pane_switch_preview-pane`](CONFIGURATION.md#fzf_pane_switch_preview-pane) | Shows a preview of the highlighted pane. |
+| [`@fzf_pane_switch_preview-pane-start`](CONFIGURATION.md#fzf_pane_switch_preview-pane-start) | Sets whether an enabled preview starts visible or hidden. |
 | [`@fzf_pane_switch_preview-pane-position`](CONFIGURATION.md#fzf_pane_switch_preview-pane-position) | Size and position of the preview window. |
 | [`@fzf_pane_switch_footer`](CONFIGURATION.md#fzf_pane_switch_footer) | Shows enabled actions and their keys. |
 | [`@fzf_pane_switch_jump-labels`](CONFIGURATION.md#fzf_pane_switch_jump-labels) | Enables direct selection of visible panes using jump labels. |
