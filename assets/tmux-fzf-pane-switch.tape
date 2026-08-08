@@ -25,7 +25,19 @@ Type "tmux attach" Enter
 Sleep 2s
 Show
 
-# Start tmux-fzf-pane-switch
+# Start tmux-fzf-pane-switch for first search
+Sleep 1
+Ctrl+p
+Sleep 500ms
+Type "s"
+Sleep 500ms
+
+# Type search query
+Type@500ms "code"
+Sleep 500ms
+Enter
+
+# Start tmux-fzf-pane-switch for second search
 Sleep 1
 Ctrl+p
 Sleep 500ms

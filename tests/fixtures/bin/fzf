@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+if [[ "${1:-}" == '--version' ]]; then
+    printf '%s (test)\n' "${FZF_STUB_VERSION:-0.74.2}"
+    exit 0
+fi
+
+if [[ "${1:-}" == '--help' ]]; then
+    printf '%s\n' "${FZF_STUB_HELP:-}"
+    exit 0
+fi
+
+printf '%s\n' "$@" > "${FZF_STUB_ARGS}"
+command cat > "${FZF_STUB_INPUT}"
+printf '%s' "${FZF_STUB_OUTPUT:-%1}"

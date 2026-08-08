@@ -6,119 +6,134 @@
 
 Switch to any TMUX pane, in any session, by searching and filtering using fzf.
 
-Search and filter on any pane details, such as (but not limited to) the `#{window_name}`, `#{pane_title}`, or `#{pane_current_command}"`. If a pane cannot be found using the search criteria, the plugin will offer to create a new window in the current session.
+Search and filter on any pane details, such as (but not limited to) the `#{window_name}`, `#{pane_title}`, or `#{pane_current_command}`. If a pane cannot be found using the search criteria, the plugin will offer to create a new window in the current session.
 
 ## Requirements
 
-* [fzf](https://github.com/junegunn/fzf) >= 0.53.0 (requires the `--tmux` option). I tested with 0.74.0.
-* [tmux](https://github.com/tmux/tmux) >= 3.3. I tested with 3.7b.
+- [fzf](https://github.com/junegunn/fzf) >= 0.71.0
+- [tmux](https://github.com/tmux/tmux) >= 3.3
 
-> [!NOTE]
-> To get the border styling as shown in the image above, you need fzf version >= 0.58.0.
+_I've tested this plugin with tmux 3.7b and fzf 0.74.2._
 
 ## Installation
 
-### Using TPM (recommended)
+<details>
+
+<summary>Using TPM (recommended)</summary>
 
 1. Install [TPM (Tmux Plugin Manager)](https://github.com/tmux-plugins/tpm).
 
 2. Add `tmux-fzf-pane-switch` to your `~/.tmux.conf`:
 
-    ```bash
-    set -g @plugin 'kristijan/fzf-pane-switch.tmux'
-    ```
+   ```bash
+   set -g @plugin 'kristijan/fzf-pane-switch.tmux'
+   ```
 
 3. Start tmux and install the plugin.
 
-    Press `<tmux_prefix> + I` (capital i, as in Install) to install the plugin.
+   Press `<tmux_prefix> + I` (capital i, as in Install) to install the plugin.
 
-    Press `<tmux_prefix> + U` (capital u, as in Update) to update the plugin.
+   Press `<tmux_prefix> + U` (capital u, as in Update) to update the plugin.
 
-### Manual installation
+</details>
+
+<details>
+
+<summary>Manual installation</summary>
 
 1. Clone this repository to your desired location:
 
-    ```bash
-    git clone https://github.com/kristijan/fzf-pane-switch.tmux.git ~/.tmux/plugins/fzf-pane-switch.tmux
-    ```
+   ```bash
+   git clone https://github.com/kristijan/fzf-pane-switch.tmux.git ~/.tmux/plugins/fzf-pane-switch.tmux
+   ```
 
 2. Add the following to your `~/.tmux.conf`:
 
-    ```bash
-    run-shell ~/.tmux/plugins/fzf-pane-switch.tmux/select_pane.tmux
-    ```
+   ```bash
+   run-shell ~/.tmux/plugins/fzf-pane-switch.tmux/select_pane.tmux
+   ```
 
-    Any customisation variables should be set **BEFORE** the `run-shell` line so they're correctly sourced.
+   Any customisation variables should be set **BEFORE** the `run-shell` line so they're correctly sourced.
 
-    For example:
+   For example:
 
-    ```bash
-    set -g @fzf_pane_switch_list-panes-format "session_name window_name pane_title pane_current_command"
-    run-shell ~/.tmux/plugins/fzf-pane-switch.tmux/select_pane.tmux
-    ```
+   ```bash
+   set -g @fzf_pane_switch_list-panes-format "session_name window_name pane_title pane_current_command"
+   run-shell ~/.tmux/plugins/fzf-pane-switch.tmux/select_pane.tmux
+   ```
 
 3. Reload your tmux configuration:
 
-    ```bash
-    tmux source-file ~/.tmux.conf
-    ```
+   ```bash
+   tmux source-file ~/.tmux.conf
+   ```
 
-## Customise
+</details>
 
-You can override the following options in your `tmux.conf` file.
+## Configuration
 
-### Key binding
+Set plugin options in `tmux.conf` before loading the plugin. See
+[Configuration](CONFIGURATION.md) for defaults, accepted values, and examples.
 
-```bash
-set -g @fzf_pane_switch_bind-key "key binding"
-```
+### General
 
-Default is `prefix + s`, which replaces the tmux default session select (tmux default: `choose-tree -Zs -O name`)
+| Setting                                                                                            | Description                                                  |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`@fzf_pane_switch_bind-key`](CONFIGURATION.md#fzf_pane_switch_bind-key)                           | tmux key binding that opens the pane switcher.               |
+| [`@fzf_pane_switch_window-position`](CONFIGURATION.md#fzf_pane_switch_window-position)             | Size and position of the fzf tmux popup.                     |
+| [`@fzf_pane_switch_preview-pane`](CONFIGURATION.md#fzf_pane_switch_preview-pane)                   | Shows a preview of the highlighted pane.                     |
+| [`@fzf_pane_switch_preview-pane-start`](CONFIGURATION.md#fzf_pane_switch_preview-pane-start)       | Sets whether an enabled preview starts visible or hidden.    |
+| [`@fzf_pane_switch_preview-pane-position`](CONFIGURATION.md#fzf_pane_switch_preview-pane-position) | Size and position of the preview window.                     |
+| [`@fzf_pane_switch_footer`](CONFIGURATION.md#fzf_pane_switch_footer)                               | Shows enabled actions and their keys.                        |
+| [`@fzf_pane_switch_jump-labels`](CONFIGURATION.md#fzf_pane_switch_jump-labels)                     | Enables direct selection of visible panes using jump labels. |
+| [`@fzf_pane_switch_refresh`](CONFIGURATION.md#fzf_pane_switch_refresh)                             | Enables refreshing pane details and preview content.         |
 
-### fzf window position
+### Pane presentation
 
-```bash
-set -g @fzf_pane_switch_window-position "position"
-```
+| Setting                                                                                    | Description                                      |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| [`@fzf_pane_switch_layout`](CONFIGURATION.md#fzf_pane_switch_layout)                       | Selects the one-row or two-row pane layout.      |
+| [`@fzf_pane_switch_list-panes-format`](CONFIGURATION.md#fzf_pane_switch_list-panes-format) | Configures fields in the one-row layout.         |
+| [`@fzf_pane_switch_two-row-style`](CONFIGURATION.md#fzf_pane_switch_two-row-style)         | Selects the visual treatment of two-row entries. |
+| [`@fzf_pane_switch_row-1-format`](CONFIGURATION.md#fzf_pane_switch_row-1-format)           | Configures fields in the first row.              |
+| [`@fzf_pane_switch_row-2-format`](CONFIGURATION.md#fzf_pane_switch_row-2-format)           | Configures fields in the second row.             |
+| [`@fzf_pane_switch_separator`](CONFIGURATION.md#fzf_pane_switch_separator)                 | Sets the separator between values.               |
 
-Default is `center,70%,80%`. You can use any options allowed [https://man.archlinux.org/man/fzf.1.en#tmux](https://man.archlinux.org/man/fzf.1.en#tmux).
+### Colours
 
-### fzf pane preview
-
-```bash
-set -g @fzf_pane_switch_preview-pane "[true|false]"
-```
-
-Default is `true`
-
-### fzf pane preview position
-
-Only when `@fzf_pane_switch_preview-pane` is `true`.
-
-```bash
-set -g @fzf_pane_switch_preview-pane-position "position"
-```
-
-Default is `right,,,nowrap`. You can use any options allowed [https://man.archlinux.org/man/fzf.1.en#preview~3](https://man.archlinux.org/man/fzf.1.en#preview~3).
-
-### tmux list-panes format
-
-This is the output format of `tmux list-panes` that you see in the fzf window. You can use this to match on other tmux formats.
-
-```bash
-set -g @fzf_pane_switch_list-panes-format "FORMATS"
-```
-
-Default is `pane_id session_name window_name pane_title pane_current_command`.
-
-> [!TIP]
-> You can use any tmux FORMAT option allowed [https://www.man7.org/linux/man-pages/man1/tmux.1.html#FORMATS](https://www.man7.org/linux/man-pages/man1/tmux.1.html#FORMATS). String manipulation should also work. For example, the `pane_id` by default is shown with a leading percent symbol (e.g. `%3`). You can remove this by setting `set -g @fzf_pane_switch_list-panes-format "s/%//:pane_id session_name window_name pane_title pane_current_command"`
+| Setting                                                                                      | Description                                       |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| [`@fzf_pane_switch_list-panes-colours`](CONFIGURATION.md#fzf_pane_switch_list-panes-colours) | Assigns positional colours in the one-row layout. |
+| [`@fzf_pane_switch_row-1-colours`](CONFIGURATION.md#fzf_pane_switch_row-1-colours)           | Assigns positional colours in the first row.      |
+| [`@fzf_pane_switch_row-2-colours`](CONFIGURATION.md#fzf_pane_switch_row-2-colours)           | Assigns positional colours in the second row.     |
+| [`@fzf_pane_switch_colour-separator`](CONFIGURATION.md#fzf_pane_switch_colour-separator)     | Sets the value-separator colour.                  |
 
 ## Tools used in demonstration
 
-* TMUX theme is [catppuccin](https://github.com/catppuccin/tmux) mocha.
-* ZSH shell prompt is [starship](https://starship.rs)
-* `fzf` theme is [catppuccin](https://github.com/catppuccin/fzf) mocha.
+- TMUX theme is [catppuccin](https://github.com/catppuccin/tmux) mocha.
+- ZSH shell prompt is [starship](https://starship.rs)
+- `fzf` theme is [catppuccin](https://github.com/catppuccin/fzf) mocha.
+
+<details>
+
+<summary>Configuration used in demonstration</summary>
+
+```bash
+set -g @plugin 'kristijan/fzf-pane-switch.tmux'
+## general
+set -g @fzf_pane_switch_footer "true"
+set -g @fzf_pane_switch_jump-labels "true"
+set -g @fzf_pane_switch_refresh "true"
+## row layout and style
+set -g @fzf_pane_switch_layout "two-row"
+## row format and colours
+set -g @fzf_pane_switch_row-1-format "pane_title pane_current_command"
+set -g @fzf_pane_switch_row-1-colours "blue magenta"
+set -g @fzf_pane_switch_row-2-format "session_name window_name s|/Users/[^/]*|~|:pane_current_path"
+set -g @fzf_pane_switch_row-2-colours "cyan yellow gray:italic"
+```
+
+</details>
 
 ## Inspiration
 
