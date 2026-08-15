@@ -4,6 +4,7 @@ CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Default values
 default_bind_key='s'
+default_bind_key_mode='prefix'
 default_preview_pane='true'
 default_preview_pane_start='visible'
 default_footer='false'
@@ -24,6 +25,7 @@ default_row_colours=''
 
 # User overridable options
 tmux_bind_key="@fzf_pane_switch_bind-key"
+tmux_bind_key_mode="@fzf_pane_switch_bind-key-mode"
 tmux_preview_pane="@fzf_pane_switch_preview-pane"
 tmux_preview_pane_start="@fzf_pane_switch_preview-pane-start"
 tmux_footer="@fzf_pane_switch_footer"
@@ -92,13 +94,14 @@ shell_quote() {
 # Resolves the plugin configuration and registers the tmux key binding that
 # launches the pane switcher.
 set_switch_pane_bindings() {
-    local bind_key preview_pane preview_pane_start footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
+    local bind_key bind_key_mode preview_pane preview_pane_start footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
     local layout two_row_style row_1_format row_2_format separator separator_colour
     local list_panes_colours row_1_colours row_2_colours
     local tree_session_format tree_window_format tree_pane_format
     local tree_session_colours tree_window_colours tree_pane_colours
     local command argument
     bind_key="$(get_tmux_option "${tmux_bind_key}" "${default_bind_key}")"
+    bind_key_mode="$(get_tmux_option "${tmux_bind_key_mode}" "${default_bind_key_mode}")"
     preview_pane="$(get_tmux_option "${tmux_preview_pane}" "${default_preview_pane}")"
     preview_pane_start="$(get_tmux_option "${tmux_preview_pane_start}" "${default_preview_pane_start}")"
     footer="$(get_tmux_option "${tmux_footer}" "${default_footer}")"
@@ -151,7 +154,18 @@ set_switch_pane_bindings() {
         command+=" $(shell_quote "${argument}")"
     done
 
-    tmux bind-key "${bind_key}" run-shell "${command}"
+    case "${bind_key_mode}" in
+        prefix)
+            tmux bind-key "${bind_key}" run-shell "${command}"
+            ;;
+        root)
+            tmux bind-key -T root "${bind_key}" run-shell "${command}"
+            ;;
+        *)
+            tmux display-message "@fzf_pane_switch_bind-key-mode must be prefix or root (got: ${bind_key_mode})"
+            return 1
+            ;;
+    esac
 }
 
 set_switch_pane_bindings

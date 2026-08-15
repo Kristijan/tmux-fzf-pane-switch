@@ -88,6 +88,7 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 | Setting                                                                                            | Description                                                  |
 | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | [`@fzf_pane_switch_bind-key`](CONFIGURATION.md#fzf_pane_switch_bind-key)                           | tmux key binding that opens the pane switcher.               |
+| [`@fzf_pane_switch_bind-key-mode`](CONFIGURATION.md#fzf_pane_switch_bind-key-mode)                 | Selects a prefix or root key binding.                        |
 | [`@fzf_pane_switch_window-position`](CONFIGURATION.md#fzf_pane_switch_window-position)             | Size and position of the fzf tmux popup.                     |
 | [`@fzf_pane_switch_preview-pane`](CONFIGURATION.md#fzf_pane_switch_preview-pane)                   | Shows a preview of the highlighted pane.                     |
 | [`@fzf_pane_switch_preview-pane-start`](CONFIGURATION.md#fzf_pane_switch_preview-pane-start)       | Sets whether an enabled preview starts visible or hidden.    |

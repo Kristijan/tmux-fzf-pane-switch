@@ -6,6 +6,7 @@ case "${1:-}" in
     show-option)
         option="${*: -1}"
         case "${option}" in
+            @fzf_pane_switch_bind-key-mode) printf '%s\n' "${TMUX_STUB_BIND_KEY_MODE:-}" ;;
             @fzf_pane_switch_layout) printf '%s\n' "${TMUX_STUB_LAYOUT:-}" ;;
             @fzf_pane_switch_two-row-style) printf '%s\n' "${TMUX_STUB_STYLE:-}" ;;
             @fzf_pane_switch_row-1-format) printf '%s\n' "${TMUX_STUB_ROW_1:-}" ;;

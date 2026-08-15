@@ -22,6 +22,19 @@ The default produces the binding `prefix + s` and replaces tmux's default sessio
 set -g @fzf_pane_switch_bind-key "s"
 ```
 
+### `@fzf_pane_switch_bind-key-mode`
+
+| Setting          | Options          | Default  |
+| ---------------- | ---------------- | -------- |
+| Key binding mode | `prefix`, `root` | `prefix` |
+
+Prefix mode requires the tmux prefix before the configured key. Root mode binds the key in tmux's root key table, allowing it to open the pane switcher without the prefix.
+
+```bash
+set -g @fzf_pane_switch_bind-key "C-s"
+set -g @fzf_pane_switch_bind-key-mode "root"
+```
+
 ### `@fzf_pane_switch_window-position`
 
 | Setting                 | Options                            | Default          |

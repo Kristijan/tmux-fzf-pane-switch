@@ -376,6 +376,51 @@ test_tmux_entrypoint_passes_structured_configuration() {
     fi
 }
 
+test_tmux_entrypoint_configures_binding_mode() {
+    local name='tmux entrypoint supports prefix and root binding modes'
+    local case_dir="${test_tmp}/tmux-binding-mode"
+    mkdir -p "${case_dir}"
+
+    PATH="${fixture_bin}:${PATH}" \
+        TMUX_STUB_LOG="${case_dir}/prefix-log" \
+        bash "${repo_dir}/select_pane.tmux"
+
+    PATH="${fixture_bin}:${PATH}" \
+        TMUX_STUB_LOG="${case_dir}/root-log" \
+        TMUX_STUB_BIND_KEY_MODE='root' \
+        bash "${repo_dir}/select_pane.tmux"
+
+    if ! command grep -q '^bind-key s run-shell ' "${case_dir}/prefix-log"; then
+        fail "${name}: prefix mode was not the default"
+    elif ! command grep -q '^bind-key -T root s run-shell ' "${case_dir}/root-log"; then
+        fail "${name}: root mode did not bind in the root key table"
+    else
+        pass "${name}"
+    fi
+}
+
+test_tmux_entrypoint_rejects_invalid_binding_mode() {
+    local name='tmux entrypoint rejects an invalid binding mode'
+    local case_dir="${test_tmp}/tmux-invalid-binding-mode" status
+    mkdir -p "${case_dir}"
+
+    PATH="${fixture_bin}:${PATH}" \
+        TMUX_STUB_LOG="${case_dir}/tmux-log" \
+        TMUX_STUB_BIND_KEY_MODE='global' \
+        bash "${repo_dir}/select_pane.tmux"
+    status=$?
+
+    if [[ ${status} -eq 0 ]]; then
+        fail "${name}: command succeeded"
+    elif command grep -q '^bind-key ' "${case_dir}/tmux-log"; then
+        fail "${name}: invalid mode registered a binding"
+    elif ! command grep -q '@fzf_pane_switch_bind-key-mode must be prefix or root (got: global)' "${case_dir}/tmux-log"; then
+        fail "${name}: clear tmux error was not shown"
+    else
+        pass "${name}"
+    fi
+}
+
 assert_invalid_configuration() {
     local case_name="$1" expected_option="$2" layout="$3" style="$4"
     local row_1="$5" row_2="$6" separator="$7" list_colours="$8" separator_colour="$9"
@@ -893,6 +938,8 @@ test_colours_complex_row_values_by_position
 test_styles_positional_colours_with_ansi_attributes
 test_colours_one_row_without_changing_legacy_layout
 test_tmux_entrypoint_passes_structured_configuration
+test_tmux_entrypoint_configures_binding_mode
+test_tmux_entrypoint_rejects_invalid_binding_mode
 test_rejects_invalid_structured_configuration
 test_preserves_selection_and_unmatched_query_outcomes
 test_toggles_the_preview_without_a_footer
