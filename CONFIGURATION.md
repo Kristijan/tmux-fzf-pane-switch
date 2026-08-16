@@ -364,7 +364,7 @@ Use `none` to leave a position uncoloured:
 
 ```bash
 set -g @fzf_pane_switch_row-1-colours "blue magenta"
-set -g @fzf_pane_switch_row-2-colours "#f9e2af none #89b4fa"
+set -g @fzf_pane_switch_row-2-colours "#f9e2af none"
 ```
 
 Add one or more ANSI attributes after a colour using colon-separated values:
