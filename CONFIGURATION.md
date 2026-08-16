@@ -8,6 +8,14 @@ tmux source-file ~/.tmux.conf
 
 Boolean settings accept `true` or `false`. Invalid layout, style, row, separator, boolean, or colour settings display an option-specific tmux message and do not open the switcher.
 
+To check the plugin options in a running tmux server, run:
+
+```bash
+./tests/check_tmux_config.sh
+```
+
+The checker reports every configured `@fzf_pane_switch` option as `PASS` or `FAIL` and provides fixes for invalid option names, predefined values, and positional colour counts.
+
 ## General
 
 ### `@fzf_pane_switch_bind-key`

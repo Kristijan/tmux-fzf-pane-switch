@@ -421,6 +421,66 @@ test_tmux_entrypoint_rejects_invalid_binding_mode() {
     fi
 }
 
+test_checks_running_tmux_configuration() {
+    local name='checks names predefined values and positional colour counts in running tmux configuration'
+    local case_dir="${test_tmp}/check-tmux-config" status
+    mkdir -p "${case_dir}"
+
+    PATH="${fixture_bin}:${PATH}" \
+        TMUX_STUB_LOG="${case_dir}/valid-tmux-log" \
+        TMUX_STUB_SHOW_OPTIONS=$'status-keys vi\n@fzf_pane_switch_layout tree\n@fzf_pane_switch_preview-pane true\n@fzf_pane_switch_row-2-colours blue none\n@fzf_pane_switch_tree-pane-format pane_index pane_title\n@fzf_pane_switch_tree-pane-colours cyan magenta\n' \
+        bash "${repo_dir}/tests/check_tmux_config.sh" >"${case_dir}/valid-output"
+    status=$?
+
+    if [[ ${status} -ne 0 ]]; then
+        fail "${name}: valid configuration failed"
+        return
+    elif [[ $(command grep -c '^PASS @fzf_pane_switch' "${case_dir}/valid-output") -ne 5 ]]; then
+        fail "${name}: not every discovered plugin option passed"
+        return
+    fi
+
+    PATH="${fixture_bin}:${PATH}" \
+        TMUX_STUB_LOG="${case_dir}/invalid-tmux-log" \
+        TMUX_STUB_SHOW_OPTIONS=$'@fzf_pane_switch_bind-key-mode global\n@fzf_pane_switch_row-1-format pane_title pane_current_command pane_pid\n@fzf_pane_switch_row-1-colours blue green\n@fzf_pane_switch_typo true\n' \
+        bash "${repo_dir}/tests/check_tmux_config.sh" >"${case_dir}/invalid-output"
+    status=$?
+
+    if [[ ${status} -eq 0 ]]; then
+        fail "${name}: invalid configuration succeeded"
+    elif [[ $(command grep -c '^FAIL @fzf_pane_switch' "${case_dir}/invalid-output") -ne 3 ]]; then
+        fail "${name}: invalid options were not individually reported"
+    elif ! command grep -q "set it to one of: prefix root" "${case_dir}/invalid-output"; then
+        fail "${name}: enum fix was not reported"
+    elif ! command grep -q "set exactly 3 colour entries" "${case_dir}/invalid-output"; then
+        fail "${name}: positional colour fix was not reported"
+    elif ! command grep -q "unknown option" "${case_dir}/invalid-output"; then
+        fail "${name}: unknown option fix was not reported"
+    else
+        pass "${name}"
+    fi
+}
+
+test_rejects_empty_running_tmux_configuration() {
+    local name='rejects a running tmux configuration with no plugin options'
+    local case_dir="${test_tmp}/check-empty-tmux-config" status
+    mkdir -p "${case_dir}"
+
+    PATH="${fixture_bin}:${PATH}" \
+        TMUX_STUB_LOG="${case_dir}/tmux-log" \
+        TMUX_STUB_SHOW_OPTIONS=$'status-keys vi\n' \
+        bash "${repo_dir}/tests/check_tmux_config.sh" >"${case_dir}/output"
+    status=$?
+
+    if [[ ${status} -eq 0 ]]; then
+        fail "${name}: empty plugin configuration succeeded"
+    elif ! command grep -q 'No options beginning with @fzf_pane_switch were found' "${case_dir}/output"; then
+        fail "${name}: actionable empty-configuration error was not reported"
+    else
+        pass "${name}"
+    fi
+}
+
 assert_invalid_configuration() {
     local case_name="$1" expected_option="$2" layout="$3" style="$4"
     local row_1="$5" row_2="$6" separator="$7" list_colours="$8" separator_colour="$9"
@@ -940,6 +1000,8 @@ test_colours_one_row_without_changing_legacy_layout
 test_tmux_entrypoint_passes_structured_configuration
 test_tmux_entrypoint_configures_binding_mode
 test_tmux_entrypoint_rejects_invalid_binding_mode
+test_checks_running_tmux_configuration
+test_rejects_empty_running_tmux_configuration
 test_rejects_invalid_structured_configuration
 test_preserves_selection_and_unmatched_query_outcomes
 test_toggles_the_preview_without_a_footer
