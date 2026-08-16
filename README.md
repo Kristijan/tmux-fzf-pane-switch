@@ -27,9 +27,9 @@ _I've tested this plugin with tmux 3.7b and fzf 0.74.2._
 
 <details>
 
-<summary>Using TPM (recommended)</summary>
+<summary>Using TPM Redux (recommended)</summary>
 
-1. Install [TPM (Tmux Plugin Manager)](https://github.com/tmux-plugins/tpm).
+1. Install [TPM Redux (Tmux Plugin Manager)](https://github.com/RyanMacG/tpm-redux).
 
 2. Add `tmux-fzf-pane-switch` to your `~/.tmux.conf`:
 
