@@ -27,9 +27,9 @@ _I've tested this plugin with tmux 3.7b and fzf 0.74.2._
 
 <details>
 
-<summary>Using TPM (recommended)</summary>
+<summary>Using TPM Redux (recommended)</summary>
 
-1. Install [TPM (Tmux Plugin Manager)](https://github.com/tmux-plugins/tpm).
+1. Install [TPM Redux (Tmux Plugin Manager)](https://github.com/RyanMacG/tpm-redux).
 
 2. Add `tmux-fzf-pane-switch` to your `~/.tmux.conf`:
 
@@ -88,6 +88,7 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 | Setting                                                                                            | Description                                                  |
 | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | [`@fzf_pane_switch_bind-key`](CONFIGURATION.md#fzf_pane_switch_bind-key)                           | tmux key binding that opens the pane switcher.               |
+| [`@fzf_pane_switch_bind-key-mode`](CONFIGURATION.md#fzf_pane_switch_bind-key-mode)                 | Selects a prefix or root key binding.                        |
 | [`@fzf_pane_switch_window-position`](CONFIGURATION.md#fzf_pane_switch_window-position)             | Size and position of the fzf tmux popup.                     |
 | [`@fzf_pane_switch_preview-pane`](CONFIGURATION.md#fzf_pane_switch_preview-pane)                   | Shows a preview of the highlighted pane.                     |
 | [`@fzf_pane_switch_preview-pane-start`](CONFIGURATION.md#fzf_pane_switch_preview-pane-start)       | Sets whether an enabled preview starts visible or hidden.    |
@@ -119,6 +120,24 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 | [`@fzf_pane_switch_row-2-colours`](CONFIGURATION.md#fzf_pane_switch_row-2-colours)           | Assigns positional colours in the second row.     |
 | [Tree session/window/pane colour options](CONFIGURATION.md#tree-positional-colours)          | Assign positional colours to tree node fields.    |
 | [`@fzf_pane_switch_colour-separator`](CONFIGURATION.md#fzf_pane_switch_colour-separator)     | Sets the value-separator colour.                  |
+
+## Testing
+
+The regression suite requires [Bats](https://github.com/bats-core/bats-core) 1.11.0 or later. On macOS, install it with Homebrew:
+
+```bash
+brew install bats-core
+```
+
+On Linux, install Bats using your distribution package or the [official installation instructions](https://bats-core.readthedocs.io/en/stable/installation.html), then confirm that `bats --version` reports 1.11.0 or later.
+
+Run the suite manually from the repository root:
+
+```bash
+bats --pretty tests
+```
+
+The suite uses included `tmux` and `fzf` stubs, so it does not require a running tmux server or a local fzf installation.
 
 ## Tools used in screenshots
 

@@ -8,6 +8,14 @@ tmux source-file ~/.tmux.conf
 
 Boolean settings accept `true` or `false`. Invalid layout, style, row, separator, boolean, or colour settings display an option-specific tmux message and do not open the switcher.
 
+To check the plugin options in a running tmux server, run:
+
+```bash
+./tests/check_tmux_config.sh
+```
+
+The checker reports every configured `@fzf_pane_switch` option as `PASS` or `FAIL` and provides fixes for invalid option names, predefined values, and positional colour counts.
+
 ## General
 
 ### `@fzf_pane_switch_bind-key`
@@ -20,6 +28,19 @@ The default produces the binding `prefix + s` and replaces tmux's default sessio
 
 ```bash
 set -g @fzf_pane_switch_bind-key "s"
+```
+
+### `@fzf_pane_switch_bind-key-mode`
+
+| Setting          | Options          | Default  |
+| ---------------- | ---------------- | -------- |
+| Key binding mode | `prefix`, `root` | `prefix` |
+
+Prefix mode requires the tmux prefix before the configured key. Root mode binds the key in tmux's root key table, allowing it to open the pane switcher without the prefix.
+
+```bash
+set -g @fzf_pane_switch_bind-key "C-s"
+set -g @fzf_pane_switch_bind-key-mode "root"
 ```
 
 ### `@fzf_pane_switch_window-position`
@@ -351,7 +372,7 @@ Use `none` to leave a position uncoloured:
 
 ```bash
 set -g @fzf_pane_switch_row-1-colours "blue magenta"
-set -g @fzf_pane_switch_row-2-colours "#f9e2af none #89b4fa"
+set -g @fzf_pane_switch_row-2-colours "#f9e2af none"
 ```
 
 Add one or more ANSI attributes after a colour using colon-separated values:

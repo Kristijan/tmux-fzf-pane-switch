@@ -6,6 +6,7 @@ case "${1:-}" in
     show-option)
         option="${*: -1}"
         case "${option}" in
+            @fzf_pane_switch_bind-key-mode) printf '%s\n' "${TMUX_STUB_BIND_KEY_MODE:-}" ;;
             @fzf_pane_switch_layout) printf '%s\n' "${TMUX_STUB_LAYOUT:-}" ;;
             @fzf_pane_switch_two-row-style) printf '%s\n' "${TMUX_STUB_STYLE:-}" ;;
             @fzf_pane_switch_row-1-format) printf '%s\n' "${TMUX_STUB_ROW_1:-}" ;;
@@ -28,20 +29,24 @@ case "${1:-}" in
         esac
         ;;
     show-options)
-        [[ -n "${TMUX_STUB_LAYOUT+x}" ]] && printf '@fzf_pane_switch_layout %s\n' "${TMUX_STUB_LAYOUT}"
-        [[ -n "${TMUX_STUB_STYLE+x}" ]] && printf '@fzf_pane_switch_two-row-style %s\n' "${TMUX_STUB_STYLE}"
-        [[ -n "${TMUX_STUB_ROW_1+x}" ]] && printf '@fzf_pane_switch_row-1-format %s\n' "${TMUX_STUB_ROW_1}"
-        [[ -n "${TMUX_STUB_ROW_2+x}" ]] && printf '@fzf_pane_switch_row-2-format %s\n' "${TMUX_STUB_ROW_2}"
-        [[ -n "${TMUX_STUB_SEPARATOR+x}" ]] && printf '@fzf_pane_switch_separator %s\n' "${TMUX_STUB_SEPARATOR}"
-        [[ -n "${TMUX_STUB_ROW_1_COLOURS+x}" ]] && printf '@fzf_pane_switch_row-1-colours %s\n' "${TMUX_STUB_ROW_1_COLOURS}"
-        [[ -n "${TMUX_STUB_ROW_2_COLOURS+x}" ]] && printf '@fzf_pane_switch_row-2-colours %s\n' "${TMUX_STUB_ROW_2_COLOURS}"
-        [[ -n "${TMUX_STUB_LIST_COLOURS+x}" ]] && printf '@fzf_pane_switch_list-panes-colours %s\n' "${TMUX_STUB_LIST_COLOURS}"
-        [[ -n "${TMUX_STUB_TREE_SESSION+x}" ]] && printf '@fzf_pane_switch_tree-session-format %s\n' "${TMUX_STUB_TREE_SESSION}"
-        [[ -n "${TMUX_STUB_TREE_WINDOW+x}" ]] && printf '@fzf_pane_switch_tree-window-format %s\n' "${TMUX_STUB_TREE_WINDOW}"
-        [[ -n "${TMUX_STUB_TREE_PANE+x}" ]] && printf '@fzf_pane_switch_tree-pane-format %s\n' "${TMUX_STUB_TREE_PANE}"
-        [[ -n "${TMUX_STUB_TREE_SESSION_COLOURS+x}" ]] && printf '@fzf_pane_switch_tree-session-colours %s\n' "${TMUX_STUB_TREE_SESSION_COLOURS}"
-        [[ -n "${TMUX_STUB_TREE_WINDOW_COLOURS+x}" ]] && printf '@fzf_pane_switch_tree-window-colours %s\n' "${TMUX_STUB_TREE_WINDOW_COLOURS}"
-        [[ -n "${TMUX_STUB_TREE_PANE_COLOURS+x}" ]] && printf '@fzf_pane_switch_tree-pane-colours %s\n' "${TMUX_STUB_TREE_PANE_COLOURS}"
+        if [[ -n "${TMUX_STUB_SHOW_OPTIONS+x}" ]]; then
+            printf '%s' "${TMUX_STUB_SHOW_OPTIONS}"
+        else
+            [[ -n "${TMUX_STUB_LAYOUT+x}" ]] && printf '@fzf_pane_switch_layout %s\n' "${TMUX_STUB_LAYOUT}"
+            [[ -n "${TMUX_STUB_STYLE+x}" ]] && printf '@fzf_pane_switch_two-row-style %s\n' "${TMUX_STUB_STYLE}"
+            [[ -n "${TMUX_STUB_ROW_1+x}" ]] && printf '@fzf_pane_switch_row-1-format %s\n' "${TMUX_STUB_ROW_1}"
+            [[ -n "${TMUX_STUB_ROW_2+x}" ]] && printf '@fzf_pane_switch_row-2-format %s\n' "${TMUX_STUB_ROW_2}"
+            [[ -n "${TMUX_STUB_SEPARATOR+x}" ]] && printf '@fzf_pane_switch_separator %s\n' "${TMUX_STUB_SEPARATOR}"
+            [[ -n "${TMUX_STUB_ROW_1_COLOURS+x}" ]] && printf '@fzf_pane_switch_row-1-colours %s\n' "${TMUX_STUB_ROW_1_COLOURS}"
+            [[ -n "${TMUX_STUB_ROW_2_COLOURS+x}" ]] && printf '@fzf_pane_switch_row-2-colours %s\n' "${TMUX_STUB_ROW_2_COLOURS}"
+            [[ -n "${TMUX_STUB_LIST_COLOURS+x}" ]] && printf '@fzf_pane_switch_list-panes-colours %s\n' "${TMUX_STUB_LIST_COLOURS}"
+            [[ -n "${TMUX_STUB_TREE_SESSION+x}" ]] && printf '@fzf_pane_switch_tree-session-format %s\n' "${TMUX_STUB_TREE_SESSION}"
+            [[ -n "${TMUX_STUB_TREE_WINDOW+x}" ]] && printf '@fzf_pane_switch_tree-window-format %s\n' "${TMUX_STUB_TREE_WINDOW}"
+            [[ -n "${TMUX_STUB_TREE_PANE+x}" ]] && printf '@fzf_pane_switch_tree-pane-format %s\n' "${TMUX_STUB_TREE_PANE}"
+            [[ -n "${TMUX_STUB_TREE_SESSION_COLOURS+x}" ]] && printf '@fzf_pane_switch_tree-session-colours %s\n' "${TMUX_STUB_TREE_SESSION_COLOURS}"
+            [[ -n "${TMUX_STUB_TREE_WINDOW_COLOURS+x}" ]] && printf '@fzf_pane_switch_tree-window-colours %s\n' "${TMUX_STUB_TREE_WINDOW_COLOURS}"
+            [[ -n "${TMUX_STUB_TREE_PANE_COLOURS+x}" ]] && printf '@fzf_pane_switch_tree-pane-colours %s\n' "${TMUX_STUB_TREE_PANE_COLOURS}"
+        fi
         ;;
     list-sessions)
         if [[ -n "${TMUX_STUB_SESSIONS_OUTPUT:-}" ]]; then
