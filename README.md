@@ -121,6 +121,24 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 | [Tree session/window/pane colour options](CONFIGURATION.md#tree-positional-colours)          | Assign positional colours to tree node fields.    |
 | [`@fzf_pane_switch_colour-separator`](CONFIGURATION.md#fzf_pane_switch_colour-separator)     | Sets the value-separator colour.                  |
 
+## Testing
+
+The regression suite requires [Bats](https://github.com/bats-core/bats-core) 1.11.0 or later. On macOS, install it with Homebrew:
+
+```bash
+brew install bats-core
+```
+
+On Linux, install Bats using your distribution package or the [official installation instructions](https://bats-core.readthedocs.io/en/stable/installation.html), then confirm that `bats --version` reports 1.11.0 or later.
+
+Run the suite manually from the repository root:
+
+```bash
+bats --pretty tests
+```
+
+The suite uses included `tmux` and `fzf` stubs, so it does not require a running tmux server or a local fzf installation.
+
 ## Tools used in screenshots
 
 - TMUX styling is [tmux-powerkit](https://github.com/fabioluciano/tmux-powerkit) with a custom catppuccin mocha theme.
