@@ -9,7 +9,7 @@ Switch to any TMUX pane, in any session, by searching and filtering using fzf.
 ![Screenshot of tmux-fzf-pane-switch in tree layout](assets/tree.png)
 
 <p align="center">
-Search and filter on any pane details, such as (but not limited to) the <code>#{window_name}</code>, <code>#{pane_title}</code>, or <code>#{pane_current_command}</code>. If a pane cannot be found using the search criteria, the plugin will offer to create a new window in the current session.
+Search and filter on any pane details, such as (but not limited to) the <code>#{window_name}</code>, <code>#{pane_title}</code>, <code>#{pane_current_command}</code>, or even the pane content itself! If a pane cannot be found using the search criteria, the plugin will offer to create a new window in the current session.
 </p>
 
 | One Row                                                                     | Two Rows                                                                    |
@@ -21,7 +21,7 @@ Search and filter on any pane details, such as (but not limited to) the <code>#{
 - [fzf](https://github.com/junegunn/fzf) >= 0.71.0
 - [tmux](https://github.com/tmux/tmux) >= 3.3
 
-_I've tested this plugin with tmux 3.7b and fzf 0.74.2._
+_I've tested this plugin with tmux 3.7c and fzf 0.74.3._
 
 ## Installation
 
@@ -92,6 +92,7 @@ Set plugin options in `tmux.conf` before loading the plugin. See
 | [`@fzf_pane_switch_window-position`](CONFIGURATION.md#fzf_pane_switch_window-position)             | Size and position of the fzf tmux popup.                     |
 | [`@fzf_pane_switch_preview-pane`](CONFIGURATION.md#fzf_pane_switch_preview-pane)                   | Shows a preview of the highlighted pane.                     |
 | [`@fzf_pane_switch_preview-pane-start`](CONFIGURATION.md#fzf_pane_switch_preview-pane-start)       | Sets whether an enabled preview starts visible or hidden.    |
+| [`@fzf_pane_switch_preview-pane-match`](CONFIGURATION.md#fzf_pane_switch_preview-pane-match)       | Includes captured pane content in fuzzy matching.            |
 | [`@fzf_pane_switch_preview-pane-position`](CONFIGURATION.md#fzf_pane_switch_preview-pane-position) | Size and position of the preview window.                     |
 | [`@fzf_pane_switch_footer`](CONFIGURATION.md#fzf_pane_switch_footer)                               | Shows enabled actions and their keys.                        |
 | [`@fzf_pane_switch_jump-labels`](CONFIGURATION.md#fzf_pane_switch_jump-labels)                     | Enables direct selection of visible panes using jump labels. |
@@ -138,6 +139,17 @@ bats --pretty tests
 ```
 
 The suite uses included `tmux` and `fzf` stubs, so it does not require a running tmux server or a local fzf installation.
+
+An opt-in integration test requires real tmux, fzf, and Python 3. It exercises capture, filtering, and generation cleanup on an isolated tmux server. Its PTY case launches the actual popup and presses `Ctrl-R`, verifying that refreshed indexing returns to ready:
+
+```bash
+RUN_FZF_PANE_SWITCH_INTEGRATION=true bats tests/integration
+```
+
+Set `FZF_INTEGRATION_BINARY`, `TMUX_INTEGRATION_BINARY`, or `PYTHON_INTEGRATION_BINARY` to exercise a specific compatible binary.
+
+Maintainers can find the feature's terminology and implementation boundaries in
+[`CONTEXT.md`](CONTEXT.md).
 
 ## Tools used in screenshots
 

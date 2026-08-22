@@ -7,6 +7,7 @@ default_bind_key='s'
 default_bind_key_mode='prefix'
 default_preview_pane='true'
 default_preview_pane_start='visible'
+default_preview_pane_match='false'
 default_footer='false'
 default_jump_labels='false'
 default_refresh='false'
@@ -28,6 +29,7 @@ tmux_bind_key="@fzf_pane_switch_bind-key"
 tmux_bind_key_mode="@fzf_pane_switch_bind-key-mode"
 tmux_preview_pane="@fzf_pane_switch_preview-pane"
 tmux_preview_pane_start="@fzf_pane_switch_preview-pane-start"
+tmux_preview_pane_match="@fzf_pane_switch_preview-pane-match"
 tmux_footer="@fzf_pane_switch_footer"
 tmux_jump_labels="@fzf_pane_switch_jump-labels"
 tmux_refresh="@fzf_pane_switch_refresh"
@@ -94,7 +96,7 @@ shell_quote() {
 # Resolves the plugin configuration and registers the tmux key binding that
 # launches the pane switcher.
 set_switch_pane_bindings() {
-    local bind_key bind_key_mode preview_pane preview_pane_start footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
+    local bind_key bind_key_mode preview_pane preview_pane_start preview_pane_match footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
     local layout two_row_style row_1_format row_2_format separator separator_colour
     local list_panes_colours row_1_colours row_2_colours
     local tree_session_format tree_window_format tree_pane_format
@@ -104,6 +106,7 @@ set_switch_pane_bindings() {
     bind_key_mode="$(get_tmux_option "${tmux_bind_key_mode}" "${default_bind_key_mode}")"
     preview_pane="$(get_tmux_option "${tmux_preview_pane}" "${default_preview_pane}")"
     preview_pane_start="$(get_tmux_option "${tmux_preview_pane_start}" "${default_preview_pane_start}")"
+    preview_pane_match="$(get_tmux_option "${tmux_preview_pane_match}" "${default_preview_pane_match}")"
     footer="$(get_tmux_option "${tmux_footer}" "${default_footer}")"
     jump_labels="$(get_tmux_option "${tmux_jump_labels}" "${default_jump_labels}")"
     refresh="$(get_tmux_option "${tmux_refresh}" "${default_refresh}")"
@@ -150,7 +153,8 @@ set_switch_pane_bindings() {
         "${tree_pane_format}" \
         "${tree_session_colours}" \
         "${tree_window_colours}" \
-        "${tree_pane_colours}"; do
+        "${tree_pane_colours}" \
+        "${preview_pane_match}"; do
         command+=" $(shell_quote "${argument}")"
     done
 

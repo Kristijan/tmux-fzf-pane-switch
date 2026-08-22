@@ -11,13 +11,13 @@ setup() {
 }
 
 @test "configuration checker accepts names, predefined values, and positional colours" {
-    export TMUX_STUB_SHOW_OPTIONS=$'status-keys vi\n@fzf_pane_switch_layout tree\n@fzf_pane_switch_preview-pane true\n@fzf_pane_switch_row-2-colours blue none\n@fzf_pane_switch_tree-pane-format pane_index pane_title\n@fzf_pane_switch_tree-pane-colours cyan magenta\n'
+    export TMUX_STUB_SHOW_OPTIONS=$'status-keys vi\n@fzf_pane_switch_layout tree\n@fzf_pane_switch_preview-pane true\n@fzf_pane_switch_preview-pane-match true\n@fzf_pane_switch_row-2-colours blue none\n@fzf_pane_switch_tree-pane-format pane_index pane_title\n@fzf_pane_switch_tree-pane-colours cyan magenta\n'
 
     run_configuration_checker
 
     assert_status 0
-    assert_output_line_count '^PASS @fzf_pane_switch' 5
-    assert_output_contains 'All 5 fzf-pane-switch options passed.'
+    assert_output_line_count '^PASS @fzf_pane_switch' 6
+    assert_output_contains 'All 6 fzf-pane-switch options passed.'
 }
 
 @test "configuration checker reports every invalid option with a fix" {

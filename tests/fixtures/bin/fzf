@@ -10,6 +10,75 @@ if [[ "${1:-}" == '--help' ]]; then
     exit 0
 fi
 
+filter='' nth='' accept_nth='' process_ansi=false
+for ((argument_index = 1; argument_index <= $#; argument_index++)); do
+    argument="${!argument_index}"
+    case "${argument}" in
+        --filter)
+            ((argument_index += 1))
+            filter="${!argument_index}"
+            ;;
+        --filter=*) filter="${argument#--filter=}" ;;
+        --nth=*) nth="${argument#--nth=}" ;;
+        --accept-nth=*) accept_nth="${argument#--accept-nth=}" ;;
+        --ansi) process_ansi=true ;;
+    esac
+done
+
+matches_filter() {
+    local value="$1" query="$2" character
+    [[ "${value}" == *"${query}"* ]] && return 0
+    [[ "${FZF_STUB_FUZZY_SUBSEQUENCE:-false}" == true ]] || return 1
+    while [[ -n "${query}" ]]; do
+        character="${query:0:1}"
+        query="${query:1}"
+        case "${value}" in
+            *"${character}"*) value="${value#*"${character}"}" ;;
+            *) return 1 ;;
+        esac
+    done
+}
+
+# Internal helper tests only need deterministic field filtering. Production
+# uses the real fzf binary, which supplies the fuzzy ranking semantics.
+if [[ -n "${nth}" ]]; then
+    field_separator=$'\037'
+    while IFS= read -r -d '' record; do
+        candidate="${record}"
+        if [[ "${process_ansi}" == true ]]; then
+            while [[ "${candidate}" == *$'\033['*m* ]]; do
+                prefix="${candidate%%$'\033['*}"
+                suffix="${candidate#*$'\033['}"
+                suffix="${suffix#*m}"
+                candidate="${prefix}${suffix}"
+            done
+        fi
+        value="${candidate}"
+        for ((field_index = 1; field_index < nth; field_index++)); do
+            value="${value#*"${field_separator}"}"
+        done
+        value="${value%%"${field_separator}"*}"
+        if matches_filter "${value}" "${filter}"; then
+            if [[ -n "${accept_nth}" ]]; then
+                target="${candidate%%"${field_separator}"*}"
+                remainder="${candidate#*"${field_separator}"}"
+                node_type="${remainder%%"${field_separator}"*}"
+                remainder="${remainder#*"${field_separator}"}"
+                remainder="${remainder#*"${field_separator}"}"
+                if [[ "${nth}" == 4 ]]; then
+                    remainder="${remainder#*"${field_separator}"}"
+                fi
+                display="${remainder#*"${field_separator}"}"
+                printf '%s%s%s%s%s\0' \
+                    "${target}" "${field_separator}" "${node_type}" "${field_separator}" "${display}"
+            else
+                printf '%s\0' "${candidate}"
+            fi
+        fi
+    done
+    exit 0
+fi
+
 printf '%s\n' "$@" > "${FZF_STUB_ARGS}"
 command cat > "${FZF_STUB_INPUT}"
 printf '%s' "${FZF_STUB_OUTPUT:-%1}"

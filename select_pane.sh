@@ -13,6 +13,8 @@ row_2_colours=''
 tree_session_colours=''
 tree_window_colours=''
 tree_pane_colours=''
+match_directory=''
+match_owner_magic='fzf-pane-switch-v1'
 
 # Converts a supported named or six-digit hexadecimal colour to an ANSI code.
 function colour_to_ansi() {
@@ -254,6 +256,520 @@ function generate_records() {
     fi
 }
 
+# Converts every layout to one NUL-delimited record shape for the optional
+# content-matching path: target, node type, and visible display text.
+function generate_match_records() {
+    local layout="$1" pane_format="$2" record target node_type display remainder
+    local -a pipeline_status=()
+
+    if [[ "${layout}" == 'one-row' ]]; then
+        generate_records "${layout}" "${pane_format}" |
+            while IFS= read -r record; do
+                target="${record%% *}"
+                display="${record#* }"
+                printf '%s%s%s%s%s\0' \
+                    "${target}" "${field_separator}" pane "${field_separator}" "${display}" || exit 1
+            done
+        pipeline_status=("${PIPESTATUS[@]}")
+        [[ "${pipeline_status[0]}" -eq 0 && "${pipeline_status[1]}" -eq 0 ]]
+        return
+    fi
+
+    generate_records "${layout}" "${pane_format}" |
+        while IFS= read -r -d '' record; do
+            target="${record%%"${field_separator}"*}"
+            remainder="${record#*"${field_separator}"}"
+            if [[ "${layout}" == 'tree' ]]; then
+                node_type="${remainder%%"${field_separator}"*}"
+                display="${remainder#*"${field_separator}"}"
+            else
+                node_type='pane'
+                display="${remainder}"
+            fi
+            printf '%s%s%s%s%s\0' \
+                "${target}" "${field_separator}" "${node_type}" "${field_separator}" "${display}" || exit 1
+        done
+    pipeline_status=("${PIPESTATUS[@]}")
+    [[ "${pipeline_status[0]}" -eq 0 && "${pipeline_status[1]}" -eq 0 ]]
+}
+
+# Writes the visible metadata and its plain search projection in one pass. This
+# avoids a second per-pane Bash loop on the first-list and refresh paths.
+function generate_match_record_files() {
+    local layout="$1" pane_format="$2" metadata_file="$3" search_file="$4"
+    local record target remainder node_type display plain_display prefix suffix
+    local -a pipeline_status=()
+    generate_match_records "${layout}" "${pane_format}" |
+        while IFS= read -r -d '' record; do
+            printf '%s\0' "${record}" >&3 || exit 1
+            target="${record%%"${field_separator}"*}"
+            remainder="${record#*"${field_separator}"}"
+            node_type="${remainder%%"${field_separator}"*}"
+            display="${remainder#*"${field_separator}"}"
+            plain_display="${display}"
+            while [[ "${plain_display}" == *$'\033['*m* ]]; do
+                prefix="${plain_display%%$'\033['*}"
+                suffix="${plain_display#*$'\033['}"
+                suffix="${suffix#*m}"
+                plain_display="${prefix}${suffix}"
+            done
+            printf '%s%s%s%s%s%s%s\0' \
+                "${target}" "${field_separator}" "${node_type}" "${field_separator}" \
+                "${plain_display}" "${field_separator}" "${display}" >&4 || exit 1
+        done 3> "${metadata_file}" 4> "${search_file}"
+    pipeline_status=("${PIPESTATUS[@]}")
+    [[ "${pipeline_status[0]}" -eq 0 && "${pipeline_status[1]}" -eq 0 ]]
+}
+
+# Confines helper operations to the private directory created by this script.
+function is_match_directory() {
+    local directory="$1" temporary_root="${TMPDIR:-/tmp}"
+    temporary_root="${temporary_root%/}"
+    [[ -d "${directory}" && ! -L "${directory}" && "${directory}" == "${temporary_root}"/fzf-pane-switch.* ]]
+}
+
+# Returns the owner PID only for directories created by this feature. The
+# marker prevents a broad temporary-directory sweep from trusting names alone.
+function match_owner_pid() {
+    local directory="$1" magic owner_pid
+    is_match_directory "${directory}" || return 1
+    [[ -O "${directory}" && -f "${directory}/owner" && ! -L "${directory}/owner" ]] || return 1
+    {
+        IFS= read -r magic
+        IFS= read -r owner_pid
+    } < "${directory}/owner"
+    [[ "${magic}" == "${match_owner_magic}" && "${owner_pid}" =~ ^[1-9][0-9]*$ ]] || return 1
+    printf '%s\n' "${owner_pid}"
+}
+
+# Reclaims snapshots whose owning switcher is no longer running. Live or
+# unrecognised directories are deliberately left untouched.
+function cleanup_stale_match_directories() {
+    local temporary_root="${TMPDIR:-/tmp}" directory owner_pid
+    temporary_root="${temporary_root%/}"
+    for directory in "${temporary_root}"/fzf-pane-switch.*; do
+        [[ -e "${directory}" || -L "${directory}" ]] || continue
+        owner_pid="$(match_owner_pid "${directory}" 2>/dev/null)" || continue
+        if ! kill -0 "${owner_pid}" 2>/dev/null; then
+            command rm -rf -- "${directory}"
+        fi
+    done
+}
+
+function write_match_state() {
+    local directory="$1" state="$2" generation="${3:-}" temporary
+    is_match_directory "${directory}" || return 1
+    if [[ -z "${generation}" ]]; then
+        generation="$(command cat "${directory}/generation" 2>/dev/null)"
+    fi
+    [[ "${generation}" =~ ^[1-9][0-9]*$ ]] || return 1
+    temporary="$(mktemp "${directory}/state.${generation}.XXXXXX")" || return 1
+    if ! printf '%s\n' "${state}" > "${temporary}" ||
+        ! mv "${temporary}" "${directory}/state.${generation}"; then
+        command rm -f -- "${temporary}"
+        return 1
+    fi
+}
+
+function current_match_generation() {
+    local directory="$1" generation
+    is_match_directory "${directory}" || return 1
+    generation="$(command cat "${directory}/generation" 2>/dev/null)"
+    [[ "${generation}" =~ ^[1-9][0-9]*$ ]] || return 1
+    printf '%s\n' "${generation}"
+}
+
+function current_match_state() {
+    local directory="$1" generation state
+    generation="$(current_match_generation "${directory}")" || return 1
+    state="$(command cat "${directory}/state.${generation}" 2>/dev/null)" || {
+        printf 'fallback\n'
+        return
+    }
+    if [[ "${state}" == indexing || "${state}" == refreshing ]] &&
+        [[ -f "${directory}/index.${generation}" && ! -L "${directory}/index.${generation}" ]]; then
+        printf 'ready\n'
+    else
+        printf '%s\n' "${state}"
+    fi
+}
+
+# A missing state file is deliberately interpreted as fallback. Removing an
+# unpublishable state prevents a stale indexing/refreshing value from keeping
+# Enter guarded when capture has already failed.
+function mark_match_fallback() {
+    local directory="$1" generation="$2"
+    if ! write_match_state "${directory}" fallback "${generation}"; then
+        command rm -f -- "${directory}/state.${generation}"
+    fi
+}
+
+# Returns the newest completed index at or before the current generation. This
+# keeps the previous content snapshot available while a refresh is capturing.
+function current_match_index() {
+    local directory="$1" generation="$2" candidate candidate_generation newest=0
+    for candidate in "${directory}"/index.*; do
+        [[ -f "${candidate}" && ! -L "${candidate}" ]] || continue
+        candidate_generation="${candidate##*.}"
+        [[ "${candidate_generation}" =~ ^[1-9][0-9]*$ ]] || continue
+        if (( candidate_generation <= generation && candidate_generation > newest )); then
+            newest="${candidate_generation}"
+        fi
+    done
+    (( newest > 0 )) || return 1
+    printf '%s/index.%s\n' "${directory}" "${newest}"
+}
+
+# Removes generations older than the newly published snapshot. A future
+# generation is never touched, even if it started during cleanup.
+function cleanup_older_match_generations() {
+    local directory="$1" generation="$2" candidate suffix
+    for candidate in "${directory}"/metadata.* "${directory}"/metadata-search.* \
+        "${directory}"/index.* "${directory}"/state.*; do
+        [[ -e "${candidate}" || -L "${candidate}" ]] || continue
+        suffix="${candidate##*.}"
+        [[ "${suffix}" =~ ^[1-9][0-9]*$ ]] || continue
+        if (( suffix < generation )); then
+            command rm -f -- "${candidate}"
+        fi
+    done
+}
+
+function match_list_label() {
+    if [[ "${FZF_PANE_SWITCH_LAYOUT:-one-row}" == 'tree' ]]; then
+        printf 'Targets'
+    else
+        printf 'Panes'
+    fi
+}
+
+# Describes the current content-index state and whether the focused result is
+# present only because its hidden pane content matched the query.
+function current_match_list_label() {
+    local directory="$1" state label
+    is_match_directory "${directory}" || return 1
+    state="$(current_match_state "${directory}" 2>/dev/null)"
+    label="$(match_list_label)"
+    case "${state}" in
+        indexing | refreshing)
+            printf '%s · Indexing content…\n' "${label}"
+            ;;
+        fallback)
+            printf '%s · Content unavailable\n' "${label}"
+            ;;
+        *)
+            if [[ "${FZF_RAW:-1}" == 0 ]] && (( ${FZF_TOTAL_COUNT:-0} > 0 )); then
+                printf '%s · Pane content match\n' "${label}"
+            else
+                printf '%s\n' "${label}"
+            fi
+            ;;
+    esac
+}
+
+# A worker captures one quarter of the targets into generation-private files.
+# Four workers keep tmux server requests bounded without spawning a normalizer
+# for every pane.
+function capture_match_index_worker() {
+    local directory="$1" generation="$2" worker_index="$3" worker_count="$4" line_count="$5"
+    local record target record_index=0
+
+    while IFS= read -r -d '' record; do
+        if (( record_index % worker_count != worker_index )); then
+            ((record_index += 1))
+            continue
+        fi
+        target="${record%%"${field_separator}"*}"
+        printf '%s%s' "${record}" "${field_separator}"
+        if ! tmux capture-pane -p -S "-${line_count}" -t "${target}" 2>/dev/null; then
+            return 1
+        fi
+        printf '%s' "${record_separator}"
+        ((record_index += 1))
+    done < "${directory}/metadata-search.${generation}"
+}
+
+# Normalizes every captured pane and assembles the complete index in one awk
+# process. Worker streams are framed with reserved control separators that are
+# removed from searchable content before publication.
+function normalize_match_captures() {
+    local line_count="$1"
+    shift
+    awk \
+        -v limit="${line_count}" \
+        -v field_separator="${field_separator}" \
+        -v record_separator="${record_separator}" '
+        BEGIN {
+            RS = record_separator
+            ORS = ""
+        }
+        {
+            remainder = $0
+            separator_at = index(remainder, field_separator)
+            target = substr(remainder, 1, separator_at - 1)
+            remainder = substr(remainder, separator_at + 1)
+            separator_at = index(remainder, field_separator)
+            node_type = substr(remainder, 1, separator_at - 1)
+            remainder = substr(remainder, separator_at + 1)
+            separator_at = index(remainder, field_separator)
+            plain_display = substr(remainder, 1, separator_at - 1)
+            remainder = substr(remainder, separator_at + 1)
+            separator_at = index(remainder, field_separator)
+            display = substr(remainder, 1, separator_at - 1)
+            content = substr(remainder, separator_at + 1)
+
+            for (line_number in lines) delete lines[line_number]
+            line_count = split(content, captured_lines, "\n")
+            last_non_empty = 0
+            for (line_number = 1; line_number <= line_count; line_number++) {
+                line = captured_lines[line_number]
+                gsub(field_separator, " ", line)
+                gsub(record_separator, " ", line)
+                gsub(/[[:cntrl:]]/, " ", line)
+                gsub(/[[:space:]]+/, " ", line)
+                lines[line_number] = line
+                if (line ~ /[^ ]/) last_non_empty = line_number
+            }
+            start = last_non_empty - limit + 1
+            if (start < 1) start = 1
+            for (line_number = start; line_number <= last_non_empty; line_number++) {
+                if (lines[line_number] == "") continue
+                printf "%s%s%s%s%s%s%s%s%s%c", \
+                    target, field_separator, node_type, field_separator, \
+                    plain_display, field_separator, lines[line_number], field_separator, display, 0
+            }
+        }
+    ' "$@"
+}
+
+# Re-runs the current query and derives the label from the published state.
+# This is shared by successful indexing and metadata-only fallback.
+function match_index_actions() {
+    local directory="$1" script_path quoted_script quoted_directory filter_command label_command
+    script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    quoted_script="$(shell_quote "${script_path}")"
+    quoted_directory="$(shell_quote "${directory}")"
+    # This string is emitted as a new fzf action, so its query placeholder is
+    # intentionally unescaped and is expanded when reload-sync executes.
+    # fzf already starts Bash for actions. Sourcing the helper avoids launching
+    # a second Bash process on every query and index completion.
+    filter_command="source ${quoted_script} --match-filter ${quoted_directory} {q}"
+    label_command="source ${quoted_script} --match-label ${quoted_directory}"
+    printf 'reload-sync[%s]+transform-list-label[%s]\n' \
+        "${filter_command}" "${label_command}"
+}
+
+# Builds an invocation snapshot and returns fzf actions that publish it. The
+# generation check prevents an older asynchronous refresh from winning a race.
+function build_match_index() {
+    local directory="$1" line_count="${2:-30}" generation worker pid status=0
+    local next_index
+    local -a pids=() worker_files=()
+
+    is_match_directory "${directory}" || return 1
+    [[ "${line_count}" =~ ^[1-9][0-9]*$ ]] || line_count=30
+    generation="$(command cat "${directory}/generation" 2>/dev/null)"
+    if [[ ! "${generation}" =~ ^[0-9]+$ ]]; then
+        write_match_state "${directory}" fallback "${generation}"
+        printf 'change-list-label(%s · Content unavailable)\n' "$(match_list_label)"
+        return 0
+    fi
+    next_index="${directory}/index.${generation}.next"
+
+    for worker in 0 1 2 3; do
+        worker_files+=("${directory}/capture.${generation}.${worker}")
+        capture_match_index_worker "${directory}" "${generation}" "${worker}" 4 "${line_count}" \
+            > "${worker_files[worker]}" &
+        pids+=("$!")
+    done
+    for pid in "${pids[@]}"; do
+        wait "${pid}" || status=1
+    done
+
+    if [[ ${status} -ne 0 ]]; then
+        command rm -f "${worker_files[@]}" "${next_index}"
+        mark_match_fallback "${directory}" "${generation}"
+        match_index_actions "${directory}"
+        return 0
+    fi
+
+    if ! normalize_match_captures "${line_count}" "${worker_files[@]}" > "${next_index}"; then
+        command rm -f "${worker_files[@]}" "${next_index}"
+        mark_match_fallback "${directory}" "${generation}"
+        match_index_actions "${directory}"
+        return 0
+    fi
+    command rm -f "${worker_files[@]}"
+    if [[ "$(command cat "${directory}/generation" 2>/dev/null)" != "${generation}" ]]; then
+        command rm -f "${next_index}"
+        return 0
+    fi
+    if ! mv "${next_index}" "${directory}/index.${generation}"; then
+        command rm -f "${next_index}"
+        mark_match_fallback "${directory}" "${generation}"
+        match_index_actions "${directory}"
+        return 0
+    fi
+    if [[ "$(command cat "${directory}/generation" 2>/dev/null)" != "${generation}" ]]; then
+        command rm -f "${directory}/index.${generation}"
+        return 0
+    fi
+    # The completed index is authoritative if publishing the ready marker
+    # fails; current_match_state derives ready from its presence.
+    write_match_state "${directory}" ready "${generation}" || true
+    cleanup_older_match_generations "${directory}" "${generation}"
+
+    match_index_actions "${directory}"
+}
+
+# Rebuilds visible records immediately while retaining the previous content
+# snapshot until its replacement has finished capturing.
+function refresh_match_records() {
+    local directory="$1" generation temporary search_temporary generation_temporary
+    is_match_directory "${directory}" || return 1
+    generation="$(command cat "${directory}/generation" 2>/dev/null)"
+    [[ "${generation}" =~ ^[0-9]+$ ]] || generation=0
+    ((generation += 1))
+    temporary="$(mktemp "${directory}/metadata.${generation}.XXXXXX")" || return 1
+    search_temporary="$(mktemp "${directory}/metadata-search.${generation}.XXXXXX")" || {
+        command rm -f "${temporary}"
+        return 1
+    }
+    if ! generate_match_record_files "${FZF_PANE_SWITCH_LAYOUT:-one-row}" \
+        "${FZF_PANE_SWITCH_PANE_FORMAT:?missing pane format}" \
+        "${temporary}" "${search_temporary}"; then
+        command rm -f "${temporary}" "${search_temporary}"
+        return 1
+    fi
+    if ! mv "${temporary}" "${directory}/metadata.${generation}" ||
+        ! mv "${search_temporary}" "${directory}/metadata-search.${generation}" ||
+        ! write_match_state "${directory}" refreshing "${generation}"; then
+        command rm -f "${temporary}" "${search_temporary}" \
+            "${directory}/metadata.${generation}" \
+            "${directory}/metadata-search.${generation}" \
+            "${directory}/state.${generation}"
+        return 1
+    fi
+    generation_temporary="$(mktemp "${directory}/generation.XXXXXX")" || {
+        command rm -f "${directory}/metadata.${generation}" \
+            "${directory}/metadata-search.${generation}" \
+            "${directory}/state.${generation}"
+        return 1
+    }
+    if ! printf '%s\n' "${generation}" > "${generation_temporary}" ||
+        ! mv "${generation_temporary}" "${directory}/generation"; then
+        command rm -f "${generation_temporary}" \
+            "${directory}/metadata.${generation}" \
+            "${directory}/metadata-search.${generation}" \
+            "${directory}/state.${generation}"
+        return 1
+    fi
+}
+
+# Runs native fzf filtering on visible metadata first and captured content
+# second, then strips the content field before records return to the UI.
+function filter_match_records() {
+    local directory="$1" query="${2-}" record target
+    local generation state metadata_file metadata_search_file index_file='' matched_targets=$'\n'
+    is_match_directory "${directory}" || return 1
+    command -v fzf >/dev/null 2>&1 || return 1
+    generation="$(current_match_generation "${directory}")" || return 1
+    state="$(current_match_state "${directory}" 2>/dev/null)"
+    metadata_file="${directory}/metadata.${generation}"
+    metadata_search_file="${directory}/metadata-search.${generation}"
+
+    if [[ -z "${query}" ]]; then
+        command cat "${metadata_file}"
+        return
+    fi
+
+    while IFS= read -r -d '' record; do
+        target="${record%%"${field_separator}"*}"
+        matched_targets+="${target}"$'\n'
+        printf '%s\0' "${record}"
+    done < <(
+        FZF_DEFAULT_OPTS='' fzf --filter "${query}" --read0 --print0 \
+            --delimiter "${field_separator}" --nth=3 \
+            "--accept-nth={1}${field_separator}{2}${field_separator}{4}" \
+            < "${metadata_search_file}" || true
+    )
+
+    if [[ "${state}" != fallback ]] &&
+        index_file="$(current_match_index "${directory}" "${generation}")"; then
+        while IFS= read -r -d '' record; do
+            target="${record%%"${field_separator}"*}"
+            case "${matched_targets}" in
+                *$'\n'"${target}"$'\n'*) continue ;;
+            esac
+            printf '%s\0' "${record}"
+            matched_targets+="${target}"$'\n'
+        done < <(
+            FZF_DEFAULT_OPTS='' fzf --filter "${query}" --read0 --print0 \
+                --delimiter "${field_separator}" --nth=4 \
+                "--accept-nth={1}${field_separator}{2}${field_separator}{5}" \
+                < "${index_file}" |
+                LC_ALL=C tr '\000' "${record_separator}" |
+                awk -v record_separator="${record_separator}" \
+                    -v field_separator="${field_separator}" '
+                    BEGIN {
+                        RS = record_separator
+                        ORS = ""
+                    }
+                    {
+                        separator_at = index($0, field_separator)
+                        target = substr($0, 1, separator_at - 1)
+                        if (!seen[target]++) printf "%s%c", $0, 0
+                    }
+                ' || true
+        )
+    fi
+}
+
+# Prevents a zero-result Enter from creating a window before deferred content
+# matching has had a chance to produce a result.
+function match_enter_action() {
+    local directory="$1" state label
+    is_match_directory "${directory}" || return 1
+    state="$(current_match_state "${directory}" 2>/dev/null)"
+    label="$(match_list_label)"
+    case "${state}" in
+        indexing | refreshing)
+            if [[ "${FZF_RAW:-0}" != 1 ]]; then
+                printf 'bell+change-list-label(%s · Still indexing content…)\n' "${label}"
+                return
+            fi
+            ;;
+    esac
+    if (( ${FZF_TOTAL_COUNT:-${FZF_MATCH_COUNT:-0}} > 0 )); then
+        printf 'accept\n'
+    else
+        printf 'accept-or-print-query\n'
+    fi
+}
+
+function create_match_directory() {
+    local temporary_root="${TMPDIR:-/tmp}"
+    temporary_root="${temporary_root%/}"
+    cleanup_stale_match_directories
+    match_directory="$(umask 077 && mktemp -d "${temporary_root}/fzf-pane-switch.XXXXXX")" || return 1
+    if ! printf '%s\n%s\n' "${match_owner_magic}" "$$" > "${match_directory}/owner" ||
+        ! generate_match_record_files "${FZF_PANE_SWITCH_LAYOUT:-one-row}" \
+            "${FZF_PANE_SWITCH_PANE_FORMAT:?missing pane format}" \
+            "${match_directory}/metadata.1" "${match_directory}/metadata-search.1" ||
+        ! printf 'indexing\n' > "${match_directory}/state.1" ||
+        ! printf '1\n' > "${match_directory}/generation"; then
+        cleanup_match_directory
+        return 1
+    fi
+}
+
+function cleanup_match_directory() {
+    if [[ -n "${match_directory}" ]] && is_match_directory "${match_directory}"; then
+        command rm -rf -- "${match_directory}"
+    fi
+    match_directory=''
+}
+
 # Quotes a value so it can be passed safely as one argument in a shell command.
 function shell_quote() {
     local value="$1"
@@ -341,12 +857,24 @@ function is_valid_positional_style() {
 # Configures fzf, handles optional actions, and switches to the selected pane.
 function select_pane() {
     local action_index footer_text pane pane_id node_type preview_command preview_window refresh_binding reload_command script_path
+    local quoted_script quoted_directory filter_command index_command refresh_command enter_command label_command list_label
+    local content_matching="${10}"
     local -a border_styling=(
         --input-border "--input-label= Search " --info=inline-right
         --list-border "--list-label= Panes "
         --preview-border "--preview-label= Preview "
         "--ghost=type to search..."
     ) footer_keys=('Enter') footer_labels=('Switch') fzf_args preview_args=()
+
+    if [[ "${content_matching}" == 'true' ]]; then
+        trap cleanup_match_directory EXIT HUP INT TERM
+        if ! create_match_directory; then
+            cleanup_match_directory
+            trap - EXIT HUP INT TERM
+            tmux display-message 'Pane-content matching unavailable; using pane details only'
+            content_matching='false'
+        fi
+    fi
 
     if [[ "${5}" == 'tree' ]]; then
         border_styling[4]='--list-label= Targets '
@@ -377,7 +905,7 @@ function select_pane() {
         footer_labels+=('Jump')
     fi
 
-    if [[ "${8}" = 'true' ]]; then
+    if [[ "${8}" = 'true' && "${content_matching}" != 'true' ]]; then
         script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
         reload_command="$(shell_quote "${script_path}") --records"
         refresh_binding="ctrl-r:track-current+reload-sync(${reload_command})"
@@ -387,6 +915,60 @@ function select_pane() {
         fzf_args+=("--bind=${refresh_binding}" --id-nth=1)
         footer_keys+=('Ctrl-R')
         footer_labels+=('Refresh')
+    fi
+
+    # fzf runs the preview command through $SHELL, and the preview uses POSIX
+    # syntax that shells like fish can't parse, so point it at a POSIX shell.
+    local fzf_shell
+    fzf_shell="$(command -v bash || command -v sh)"
+
+    fzf_args+=(
+        --reverse
+        --tmux "${2}"
+        --with-shell "${fzf_shell} -c"
+    )
+    if [[ "${content_matching}" == 'true' ]]; then
+        script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+        quoted_script="$(shell_quote "${script_path}")"
+        quoted_directory="$(shell_quote "${match_directory}")"
+        filter_command="source ${quoted_script} --match-filter ${quoted_directory} {q}"
+        index_command="source ${quoted_script} --match-index ${quoted_directory} \${FZF_PREVIEW_LINES:-30}"
+        enter_command="source ${quoted_script} --match-enter ${quoted_directory}"
+        label_command="source ${quoted_script} --match-label ${quoted_directory}"
+        list_label='Panes'
+        [[ "${5}" == 'tree' ]] && list_label='Targets'
+        border_styling[4]="--list-label= ${list_label} · Indexing content… "
+        fzf_args+=(
+            --raw
+            --no-sort
+            --color=nomatch:-1:regular
+            --read0
+            --delimiter "${field_separator}"
+            --with-nth=3
+            "--accept-nth={1}${field_separator}{2}"
+            --id-nth=1
+            "--bind=change:reload-sync[${filter_command}]"
+            "--bind=start:bg-transform[${index_command}]"
+            "--bind=enter:transform[${enter_command}]"
+            "--bind=focus,result:transform-list-label[${label_command}]"
+        )
+        if [[ "${5}" == 'tree' ]]; then
+            fzf_args+=(--ansi)
+        fi
+        if [[ "${8}" == 'true' ]]; then
+            refresh_command="source ${quoted_script} --match-refresh ${quoted_directory}"
+            refresh_binding="ctrl-r:track-current+execute-silent[${refresh_command}]+transform-list-label[${label_command}]+bg-transform[${index_command}]"
+            if [[ "${1}" == 'true' ]]; then
+                refresh_binding+='+refresh-preview'
+            fi
+            fzf_args+=("--bind=${refresh_binding}")
+            # Refresh rebuilds the pane-content snapshot, so keep it ahead of
+            # optional actions that fzf may clip in a narrow list pane.
+            footer_keys=('Enter' 'Ctrl-R' "${footer_keys[@]:1}")
+            footer_labels=('Switch' 'Refresh' "${footer_labels[@]:1}")
+        fi
+    else
+        fzf_args+=(--bind=enter:accept-or-print-query)
     fi
 
     if [[ "${6}" = 'true' ]]; then
@@ -405,20 +987,9 @@ function select_pane() {
         border_styling+=("--footer=${footer_text}")
     fi
 
-    # fzf runs the preview command through $SHELL, and the preview uses POSIX
-    # syntax that shells like fish can't parse, so point it at a POSIX shell.
-    local fzf_shell
-    fzf_shell="$(command -v bash || command -v sh)"
-
-    fzf_args+=(
-        --reverse
-        --tmux "${2}"
-        --bind=enter:accept-or-print-query
-        --with-shell "${fzf_shell} -c"
-    )
-    if [[ "${5}" == 'tree' ]]; then
+    if [[ "${content_matching}" != 'true' && "${5}" == 'tree' ]]; then
         fzf_args+=(--with-nth=3..)
-    else
+    elif [[ "${content_matching}" != 'true' ]]; then
         fzf_args+=(--with-nth=2..)
     fi
     fzf_args+=("${border_styling[@]}" "${preview_args[@]}")
@@ -428,7 +999,14 @@ function select_pane() {
     fi
 
     # Launch switcher
-    if [[ "${5}" == 'two-row' ]]; then
+    if [[ "${content_matching}" == 'true' ]]; then
+        if [[ "${5}" == 'two-row' ]]; then
+            fzf_args+=(--multi-line --highlight-line --gap=1 "--gap-line=─")
+        fi
+        pane=$(command cat "${match_directory}/metadata.1" | fzf "${fzf_args[@]}")
+        cleanup_match_directory
+        trap - EXIT HUP INT TERM
+    elif [[ "${5}" == 'two-row' ]]; then
         fzf_args+=(
             --read0
             --delimiter "${field_separator}"
@@ -450,7 +1028,7 @@ function select_pane() {
         pane=$(generate_records "${5}" "${4}" | fzf "${fzf_args[@]}")
     fi
 
-    if [[ "${5}" == 'tree' && "${pane}" == *"${field_separator}"* ]]; then
+    if [[ ( "${5}" == 'tree' || "${content_matching}" == 'true' ) && "${pane}" == *"${field_separator}"* ]]; then
         pane_id="${pane%%"${field_separator}"*}"
         node_type="${pane#*"${field_separator}"}"
         if ! tmux display-message -p -t "${pane_id}" '#{pane_id}' >/dev/null 2>&1; then
@@ -511,12 +1089,45 @@ if [[ "${1:-}" == '--records' ]]; then
     exit
 fi
 
+case "${1:-}" in
+    --match-filter)
+        filter_match_records "${2:?missing match directory}" "${3-}"
+        exit
+        ;;
+    --match-index)
+        build_match_index "${2:?missing match directory}" "${3:-30}"
+        exit
+        ;;
+    --match-refresh)
+        refresh_match_records "${2:?missing match directory}"
+        exit
+        ;;
+    --match-enter)
+        match_enter_action "${2:?missing match directory}"
+        exit
+        ;;
+    --match-label)
+        current_match_list_label "${2:?missing match directory}"
+        exit
+        ;;
+esac
+
 command -v fzf >/dev/null 2>&1 || { echo "fzf not found"; exit 1; }
 
 fzf_version=$(fzf --version | awk '{print $1}')
-vercomp '0.71.0' "${fzf_version}"
+required_fzf_version='0.71.0'
+if [[ "${24-false}" == true ]]; then
+    # fzf 0.73 fixed background transforms dropping reload payloads. Pane
+    # matching relies on that path to apply a completed asynchronous index.
+    required_fzf_version='0.73.0'
+fi
+vercomp "${required_fzf_version}" "${fzf_version}"
 if [[ $? -eq 1 ]]; then
-    tmux display-message "fzf 0.71.0 or later is required (found ${fzf_version})"
+    if [[ "${24-false}" == true ]]; then
+        tmux display-message "@fzf_pane_switch_preview-pane-match requires fzf 0.73.0 or later (found ${fzf_version})"
+    else
+        tmux display-message "fzf 0.71.0 or later is required (found ${fzf_version})"
+    fi
     exit 1
 fi
 
@@ -540,8 +1151,9 @@ footer="${14-false}"
 jump_labels="${15-false}"
 refresh="${16-false}"
 preview_pane_start="${17-visible}"
+preview_pane_match="${24-false}"
 
-for boolean_option in footer jump_labels refresh; do
+for boolean_option in footer jump_labels refresh preview_pane_match; do
     boolean_value="${!boolean_option}"
     case "${boolean_value}" in
         true | false) ;;
@@ -647,4 +1259,4 @@ export FZF_PANE_SWITCH_TREE_SESSION_FORMAT="${tree_session_tmux_format:-}"
 export FZF_PANE_SWITCH_TREE_WINDOW_FORMAT="${tree_window_tmux_format:-}"
 export FZF_PANE_SWITCH_TREE_PANE_FORMAT="${tree_pane_tmux_format:-}"
 
-select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}" "${refresh}" "${preview_pane_start}"
+select_pane "${preview_pane}" "${fzf_window_position}" "${fzf_preview_window_position}" "${pane_format}" "${layout}" "${footer}" "${jump_labels}" "${refresh}" "${preview_pane_start}" "${preview_pane_match}"

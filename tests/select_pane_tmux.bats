@@ -24,6 +24,7 @@ setup() {
     export TMUX_STUB_JUMP_LABELS='true'
     export TMUX_STUB_REFRESH='true'
     export TMUX_STUB_PREVIEW_PANE_START='hidden'
+    export TMUX_STUB_PREVIEW_PANE_MATCH='true'
     export TMUX_STUB_TREE_SESSION='session_name session_windows'
     export TMUX_STUB_TREE_WINDOW='window_index window_name'
     export TMUX_STUB_TREE_PANE='pane_index pane_title'
@@ -43,6 +44,7 @@ setup() {
         "'true' 'true' 'true' 'hidden'"
     assert_file_contains "${TMUX_STUB_LOG}" \
         'session_name session_windows.*pane_index pane_title.*blue none.*none magenta'
+    assert_file_contains "${TMUX_STUB_LOG}" "'none magenta' 'true'"
 }
 
 @test "tmux entrypoint uses prefix binding mode by default" {
