@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+destination="${*: -1}"
+if [[ -n "${MV_STUB_BLOCK_DESTINATION:-}" &&
+    "${destination}" == "${MV_STUB_BLOCK_DESTINATION}" ]]; then
+    : > "${MV_STUB_STARTED:?missing mv start marker}"
+    while [[ ! -e "${MV_STUB_RELEASE:?missing mv release marker}" ]]; do
+        sleep 0.01
+    done
+fi
+
+exec /bin/mv "$@"

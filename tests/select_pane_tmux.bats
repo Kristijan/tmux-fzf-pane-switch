@@ -10,7 +10,7 @@ setup() {
     setup_test_environment
 }
 
-@test "tmux entrypoint binds the switcher with structured configuration" {
+@test "tmux entrypoint binds the switcher with named launch configuration" {
     export TMUX_STUB_LAYOUT='two-row'
     export TMUX_STUB_STYLE='connected'
     export TMUX_STUB_ROW_1='pane_title pane_current_command'
@@ -24,6 +24,7 @@ setup() {
     export TMUX_STUB_JUMP_LABELS='true'
     export TMUX_STUB_REFRESH='true'
     export TMUX_STUB_PREVIEW_PANE_START='hidden'
+    export TMUX_STUB_PREVIEW_PANE_MATCH='true'
     export TMUX_STUB_TREE_SESSION='session_name session_windows'
     export TMUX_STUB_TREE_WINDOW='window_index window_name'
     export TMUX_STUB_TREE_PANE='pane_index pane_title'
@@ -35,14 +36,19 @@ setup() {
 
     assert_status 0
     assert_file_contains "${TMUX_STUB_LOG}" \
-        'two-row.*connected.*pane_title pane_current_command.*session_name window_name.*·'
+        "'--launch'.*'--layout' 'two-row'.*'--two-row-style' 'connected'"
     assert_file_contains "${TMUX_STUB_LOG}" \
-        'none #89b4fa none none none.*#89b4fa none.*#f9e2af none #89b4fa'
-    assert_file_contains "${TMUX_STUB_LOG}" 'bright-black'
+        "'--row-1-format' 'pane_title pane_current_command'.*'--row-2-format' 'session_name window_name'.*'--separator' '·'"
     assert_file_contains "${TMUX_STUB_LOG}" \
-        "'true' 'true' 'true' 'hidden'"
+        "'--list-panes-colours' 'none #89b4fa none none none'.*'--row-1-colours' '#89b4fa none'.*'--row-2-colours' '#f9e2af none #89b4fa'"
     assert_file_contains "${TMUX_STUB_LOG}" \
-        'session_name session_windows.*pane_index pane_title.*blue none.*none magenta'
+        "'--colour-separator' 'bright-black'.*'--footer' 'true'.*'--jump-labels' 'true'.*'--refresh' 'true'"
+    assert_file_contains "${TMUX_STUB_LOG}" \
+        "'--preview-pane-start' 'hidden'.*'--tree-session-format' 'session_name session_windows'.*'--tree-window-format' 'window_index window_name'"
+    assert_file_contains "${TMUX_STUB_LOG}" \
+        "'--tree-pane-format' 'pane_index pane_title'.*'--tree-session-colours' 'blue none'.*'--tree-window-colours' 'yellow none'"
+    assert_file_contains "${TMUX_STUB_LOG}" \
+        "'--tree-pane-colours' 'none magenta'.*'--preview-pane-match' 'true'"
 }
 
 @test "tmux entrypoint uses prefix binding mode by default" {

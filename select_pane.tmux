@@ -7,6 +7,7 @@ default_bind_key='s'
 default_bind_key_mode='prefix'
 default_preview_pane='true'
 default_preview_pane_start='visible'
+default_preview_pane_match='false'
 default_footer='false'
 default_jump_labels='false'
 default_refresh='false'
@@ -28,6 +29,7 @@ tmux_bind_key="@fzf_pane_switch_bind-key"
 tmux_bind_key_mode="@fzf_pane_switch_bind-key-mode"
 tmux_preview_pane="@fzf_pane_switch_preview-pane"
 tmux_preview_pane_start="@fzf_pane_switch_preview-pane-start"
+tmux_preview_pane_match="@fzf_pane_switch_preview-pane-match"
 tmux_footer="@fzf_pane_switch_footer"
 tmux_jump_labels="@fzf_pane_switch_jump-labels"
 tmux_refresh="@fzf_pane_switch_refresh"
@@ -94,16 +96,18 @@ shell_quote() {
 # Resolves the plugin configuration and registers the tmux key binding that
 # launches the pane switcher.
 set_switch_pane_bindings() {
-    local bind_key bind_key_mode preview_pane preview_pane_start footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
+    local bind_key bind_key_mode preview_pane preview_pane_start preview_pane_match footer jump_labels refresh fzf_window_position fzf_preview_window_position list_panes_format
     local layout two_row_style row_1_format row_2_format separator separator_colour
     local list_panes_colours row_1_colours row_2_colours
     local tree_session_format tree_window_format tree_pane_format
     local tree_session_colours tree_window_colours tree_pane_colours
     local command argument
+    local -a launch_arguments
     bind_key="$(get_tmux_option "${tmux_bind_key}" "${default_bind_key}")"
     bind_key_mode="$(get_tmux_option "${tmux_bind_key_mode}" "${default_bind_key_mode}")"
     preview_pane="$(get_tmux_option "${tmux_preview_pane}" "${default_preview_pane}")"
     preview_pane_start="$(get_tmux_option "${tmux_preview_pane_start}" "${default_preview_pane_start}")"
+    preview_pane_match="$(get_tmux_option "${tmux_preview_pane_match}" "${default_preview_pane_match}")"
     footer="$(get_tmux_option "${tmux_footer}" "${default_footer}")"
     jump_labels="$(get_tmux_option "${tmux_jump_labels}" "${default_jump_labels}")"
     refresh="$(get_tmux_option "${tmux_refresh}" "${default_refresh}")"
@@ -126,31 +130,36 @@ set_switch_pane_bindings() {
     tree_window_colours="$(get_tmux_option_allow_empty "${tmux_tree_window_colours}" "${default_row_colours}")"
     tree_pane_colours="$(get_tmux_option_allow_empty "${tmux_tree_pane_colours}" "${default_row_colours}")"
 
+    launch_arguments=(
+        --launch
+        --preview-pane "${preview_pane}"
+        --window-position "${fzf_window_position}"
+        --preview-pane-position "${fzf_preview_window_position}"
+        --list-panes-format "${list_panes_format}"
+        --layout "${layout}"
+        --two-row-style "${two_row_style}"
+        --row-1-format "${row_1_format}"
+        --row-2-format "${row_2_format}"
+        --separator "${separator}"
+        --list-panes-colours "${list_panes_colours}"
+        --colour-separator "${separator_colour}"
+        --row-1-colours "${row_1_colours}"
+        --row-2-colours "${row_2_colours}"
+        --footer "${footer}"
+        --jump-labels "${jump_labels}"
+        --refresh "${refresh}"
+        --preview-pane-start "${preview_pane_start}"
+        --tree-session-format "${tree_session_format}"
+        --tree-window-format "${tree_window_format}"
+        --tree-pane-format "${tree_pane_format}"
+        --tree-session-colours "${tree_session_colours}"
+        --tree-window-colours "${tree_window_colours}"
+        --tree-pane-colours "${tree_pane_colours}"
+        --preview-pane-match "${preview_pane_match}"
+    )
+
     command="$(shell_quote "${CURRENT_DIR}/select_pane.sh")"
-    for argument in \
-        "${preview_pane}" \
-        "${fzf_window_position}" \
-        "${fzf_preview_window_position}" \
-        "${list_panes_format}" \
-        "${layout}" \
-        "${two_row_style}" \
-        "${row_1_format}" \
-        "${row_2_format}" \
-        "${separator}" \
-        "${list_panes_colours}" \
-        "${separator_colour}" \
-        "${row_1_colours}" \
-        "${row_2_colours}" \
-        "${footer}" \
-        "${jump_labels}" \
-        "${refresh}" \
-        "${preview_pane_start}" \
-        "${tree_session_format}" \
-        "${tree_window_format}" \
-        "${tree_pane_format}" \
-        "${tree_session_colours}" \
-        "${tree_window_colours}" \
-        "${tree_pane_colours}"; do
+    for argument in "${launch_arguments[@]}"; do
         command+=" $(shell_quote "${argument}")"
     done
 

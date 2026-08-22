@@ -81,6 +81,22 @@ set -g @fzf_pane_switch_preview-pane-start "hidden"
 
 This setting has no effect when `@fzf_pane_switch_preview-pane` is `false`.
 
+### `@fzf_pane_switch_preview-pane-match`
+
+| Setting                       | Options         | Default |
+| ----------------------------- | --------------- | ------- |
+| Match captured pane content   | `true`, `false` | `false` |
+
+When enabled, searches can match the visible pane-content that the preview captures, even when the preview itself is disabled or starts hidden. Pane details rank before content-only matches, and captured content remains hidden from the selector rows.
+
+This option requires fzf 0.73.0 or later because indexing relies on its fix for reload actions returned by background transforms. The ordinary switcher supports fzf 0.71.0 when this option is disabled.
+
+```bash
+set -g @fzf_pane_switch_preview-pane-match "true"
+```
+
+Content is captured after the switcher opens using four bounded workers and one batched normalization pass. Until the invocation snapshot is ready, the switcher remains immediately usable for pane-detail matches and shows its indexing state in the list label. `Ctrl-R`, when enabled, refreshes both the pane details and the content snapshot. Overlapping refreshes are generation-isolated, so an older capture cannot replace a newer snapshot.
+
 ### `@fzf_pane_switch_preview-pane-position`
 
 | Setting                   | Options                                      | Default          |
