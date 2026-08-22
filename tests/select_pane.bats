@@ -10,6 +10,85 @@ setup() {
     setup_test_environment
 }
 
+@test "launches the switcher from named configuration in any order" {
+    printf '%%1 %%1 work editor Title nvim \n' > "${CASE_DIR}/expected-input"
+    export TMUX_STUB_EXPAND_FORMAT='false'
+    export TMUX_STUB_LIST_OUTPUT=$'%1 %1 work editor Title nvim \n'
+
+    run_select_pane \
+        --launch \
+        --preview-pane-match false \
+        --layout one-row \
+        --list-panes-format \
+        'pane_id session_name window_name pane_title pane_current_command' \
+        --window-position 'center,70%,80%' \
+        --preview-pane true \
+        --preview-pane-position 'right,,,nowrap' \
+        --two-row-style plain \
+        --row-1-format 'pane_title pane_current_command' \
+        --row-2-format 'session_name window_name' \
+        --separator '│' \
+        --list-panes-colours '' \
+        --colour-separator '' \
+        --row-1-colours '' \
+        --row-2-colours '' \
+        --footer false \
+        --jump-labels false \
+        --refresh false \
+        --preview-pane-start visible \
+        --tree-session-format session_name \
+        --tree-window-format 'window_index window_name' \
+        --tree-pane-format 'pane_index pane_title pane_current_command' \
+        --tree-session-colours '' \
+        --tree-window-colours '' \
+        --tree-pane-colours ''
+
+    assert_status 0
+    assert_files_equal_bytes "${CASE_DIR}/expected-input" "${FZF_STUB_INPUT}"
+    assert_file_has_line "${FZF_STUB_ARGS}" '--tmux'
+    assert_file_has_line "${FZF_STUB_ARGS}" 'center,70%,80%'
+    assert_file_has_line "${FZF_STUB_ARGS}" '--preview-window=right,,,nowrap'
+}
+
+@test "rejects an unknown named launch option" {
+    run_select_pane --launch --unknown-option value
+
+    assert_status 1
+    refute_path_exists "${FZF_STUB_INPUT}"
+    assert_file_contains "${TMUX_STUB_LOG}" \
+        'Unknown launch option: --unknown-option'
+}
+
+@test "rejects a named launch option without a value" {
+    run_select_pane --launch --preview-pane
+
+    assert_status 1
+    refute_path_exists "${FZF_STUB_INPUT}"
+    assert_file_contains "${TMUX_STUB_LOG}" \
+        'Launch option requires a value: --preview-pane'
+}
+
+@test "rejects a duplicate named launch option" {
+    run_select_pane \
+        --launch \
+        --preview-pane true \
+        --preview-pane false
+
+    assert_status 1
+    refute_path_exists "${FZF_STUB_INPUT}"
+    assert_file_contains "${TMUX_STUB_LOG}" \
+        'Launch option was provided more than once: --preview-pane'
+}
+
+@test "rejects incomplete named launch configuration" {
+    run_select_pane --launch --preview-pane true
+
+    assert_status 1
+    refute_path_exists "${FZF_STUB_INPUT}"
+    assert_file_contains "${TMUX_STUB_LOG}" \
+        'Missing launch option: --window-position'
+}
+
 @test "rejects fzf older than 0.71 before opening the pane list" {
     export FZF_STUB_VERSION='0.70.0'
 
@@ -23,8 +102,10 @@ setup() {
         'fzf 0\.71\.0 or later is required'
 }
 
-@test "preserves the uncoloured legacy one-row representation" {
+@test "accepts positional configuration from a previously registered binding" {
     printf '%%1 %%1 work editor Title nvim \n' > "${CASE_DIR}/expected-input"
+    export TMUX_STUB_EXPAND_FORMAT='false'
+    export TMUX_STUB_LIST_OUTPUT=$'%1 %1 work editor Title nvim \n'
 
     run_select_pane \
         true 'center,70%,80%' 'right,,,nowrap' \

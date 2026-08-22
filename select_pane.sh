@@ -1081,6 +1081,106 @@ function vercomp() {
   return 0  # Versions are equal
 }
 
+# Normalises the launch interface while retaining the positional form used by
+# bindings registered by earlier plugin versions.
+function normalise_launch_configuration() {
+    local option required_option required_option_list variable_name
+    local seen_options=' '
+    local -a required_options=(
+        --preview-pane
+        --window-position
+        --preview-pane-position
+        --list-panes-format
+        --layout
+        --two-row-style
+        --row-1-format
+        --row-2-format
+        --separator
+        --list-panes-colours
+        --colour-separator
+        --row-1-colours
+        --row-2-colours
+        --footer
+        --jump-labels
+        --refresh
+        --preview-pane-start
+        --tree-session-format
+        --tree-window-format
+        --tree-pane-format
+        --tree-session-colours
+        --tree-window-colours
+        --tree-pane-colours
+        --preview-pane-match
+    )
+    required_option_list=" ${required_options[*]} "
+
+    if [[ "${1:-}" != '--launch' ]]; then
+        preview_pane="${1}"
+        fzf_window_position="${2}"
+        fzf_preview_window_position="${3}"
+        list_panes_format="${4}"
+        layout="${5-one-row}"
+        two_row_style="${6-plain}"
+        row_1_format="${7-pane_title pane_current_command}"
+        row_2_format="${8-session_name window_name}"
+        value_separator="${9-│}"
+        list_panes_colours="${10:-}"
+        separator_colour="${11:-}"
+        row_1_colours="${12:-}"
+        row_2_colours="${13:-}"
+        footer="${14-false}"
+        jump_labels="${15-false}"
+        refresh="${16-false}"
+        preview_pane_start="${17-visible}"
+        tree_session_format="${18-session_name}"
+        tree_window_format="${19-window_index window_name}"
+        tree_pane_format="${20-pane_index pane_title pane_current_command}"
+        tree_session_colours="${21:-}"
+        tree_window_colours="${22:-}"
+        tree_pane_colours="${23:-}"
+        preview_pane_match="${24-false}"
+        return
+    fi
+
+    shift
+    while (( $# > 0 )); do
+        option="$1"
+        if [[ "${required_option_list}" != *" ${option} "* ]]; then
+            configuration_error "Unknown launch option: ${option}"
+            return 1
+        fi
+
+        if (( $# < 2 )); then
+            configuration_error "Launch option requires a value: ${option}"
+            return 1
+        elif [[ "${seen_options}" == *" ${option} "* ]]; then
+            configuration_error "Launch option was provided more than once: ${option}"
+            return 1
+        fi
+
+        case "${option}" in
+            --window-position) fzf_window_position="$2" ;;
+            --preview-pane-position) fzf_preview_window_position="$2" ;;
+            --separator) value_separator="$2" ;;
+            --colour-separator) separator_colour="$2" ;;
+            *)
+                variable_name="${option#--}"
+                variable_name="${variable_name//-/_}"
+                printf -v "${variable_name}" '%s' "$2"
+                ;;
+        esac
+        seen_options+="${option} "
+        shift 2
+    done
+
+    for required_option in "${required_options[@]}"; do
+        if [[ "${seen_options}" != *" ${required_option} "* ]]; then
+            configuration_error "Missing launch option: ${required_option}"
+            return 1
+        fi
+    done
+}
+
 # Check for required commands
 command -v tmux >/dev/null 2>&1 || { echo "tmux not found"; exit 1; }
 
@@ -1112,46 +1212,28 @@ case "${1:-}" in
         ;;
 esac
 
+if ! normalise_launch_configuration "$@"; then
+    exit 1
+fi
+
 command -v fzf >/dev/null 2>&1 || { echo "fzf not found"; exit 1; }
 
 fzf_version=$(fzf --version | awk '{print $1}')
 required_fzf_version='0.71.0'
-if [[ "${24-false}" == true ]]; then
+if [[ "${preview_pane_match}" == true ]]; then
     # fzf 0.73 fixed background transforms dropping reload payloads. Pane
     # matching relies on that path to apply a completed asynchronous index.
     required_fzf_version='0.73.0'
 fi
 vercomp "${required_fzf_version}" "${fzf_version}"
 if [[ $? -eq 1 ]]; then
-    if [[ "${24-false}" == true ]]; then
+    if [[ "${preview_pane_match}" == true ]]; then
         tmux display-message "@fzf_pane_switch_preview-pane-match requires fzf 0.73.0 or later (found ${fzf_version})"
     else
         tmux display-message "fzf 0.71.0 or later is required (found ${fzf_version})"
     fi
     exit 1
 fi
-
-# Pane preview
-preview_pane="${1}"
-# FZF window position
-fzf_window_position="${2}"
-# fzf preview window position
-fzf_preview_window_position="${3}"
-list_panes_format="${4}"
-layout="${5-one-row}"
-two_row_style="${6-plain}"
-row_1_format="${7-pane_title pane_current_command}"
-row_2_format="${8-session_name window_name}"
-value_separator="${9-│}"
-list_panes_colours="${10:-}"
-separator_colour="${11:-}"
-row_1_colours="${12:-}"
-row_2_colours="${13:-}"
-footer="${14-false}"
-jump_labels="${15-false}"
-refresh="${16-false}"
-preview_pane_start="${17-visible}"
-preview_pane_match="${24-false}"
 
 for boolean_option in footer jump_labels refresh preview_pane_match; do
     boolean_value="${!boolean_option}"
@@ -1172,13 +1254,6 @@ case "${preview_pane_start}" in
         exit 1
         ;;
 esac
-
-tree_session_format="${18-session_name}"
-tree_window_format="${19-window_index window_name}"
-tree_pane_format="${20-pane_index pane_title pane_current_command}"
-tree_session_colours="${21:-}"
-tree_window_colours="${22:-}"
-tree_pane_colours="${23:-}"
 
 case "${layout}" in
     one-row | two-row | tree) ;;
