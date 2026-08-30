@@ -1,0 +1,38 @@
+---
+name: Bats
+
+'on':
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: bats-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Bats tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        # actions/checkout v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Install Bats
+        # bats-core/bats-action 4.0.0
+        uses: bats-core/bats-action@5b1e60c2ee94cb1b44a616ea4b1f466f9d6e38ef
+        with:
+          bats-version: 1.11.0
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: Run Bats tests
+        run: bats --print-output-on-failure tests

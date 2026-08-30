@@ -104,7 +104,7 @@ for ((index = 0; index < ${#option_names[@]}; index++)); do
         @fzf_pane_switch_preview-pane-start)
             validate_allowed_value "${option_name}" "${option_value}" 'visible hidden' || option_valid=false
             ;;
-        @fzf_pane_switch_preview-pane | @fzf_pane_switch_footer | @fzf_pane_switch_jump-labels | @fzf_pane_switch_refresh)
+        @fzf_pane_switch_preview-pane | @fzf_pane_switch_preview-pane-match | @fzf_pane_switch_footer | @fzf_pane_switch_jump-labels | @fzf_pane_switch_refresh)
             validate_allowed_value "${option_name}" "${option_value}" 'true false' || option_valid=false
             ;;
         @fzf_pane_switch_list-panes-colours)
